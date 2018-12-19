@@ -2,6 +2,7 @@ package cr4s
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.Sink
 import controller.Controller
 import cr4s.reconcile.Reconciler
 import cr4s.manager.Manager
@@ -29,5 +30,5 @@ object Main extends App {
   val deploymentController = new Controller[Deployment](deploymentReconciler)
   val manager = new Manager(Seq(podController, deploymentController))
 
-  manager.watch
+  manager.watch.runWith(Sink.foreach(println))
 }

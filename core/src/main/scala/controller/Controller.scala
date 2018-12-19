@@ -29,4 +29,10 @@ class Controller[O <: ObjectResource](reconciler: Reconciler[O])(
         }.async.toMat(Sink.ignore)(Keep.both).run()
     }
   }
+
+  def watch2(cache: Map[String, String]) = {
+    context.list[ListResource[O]].map { l =>
+      context.watchAllContinuously[O](Some(l.resourceVersion))
+    }
+  }
 }
