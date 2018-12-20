@@ -35,8 +35,8 @@ object Main extends App {
   val podController = new Controller[Pod](podReconciler)
   val deploymentController = new Controller[Deployment](deploymentReconciler)
   val fooController = new Controller[Foo](fooReconciler)
-  val manager = new Manager(Seq(podController, deploymentController, fooController))
+
+  val manager = new Manager(podController, deploymentController, fooController)
 
   manager.watch.runWith(Sink.foreach(println))
-
 }

@@ -6,7 +6,7 @@ import play.api.libs.json.Format
 import skuber.LabelSelector.IsEqualRequirement
 import skuber.api.client
 import skuber._
-import skuber.api.client.{LoggingContext, RequestContext}
+import skuber.api.client.{EventType, LoggingContext, RequestContext}
 import skuber.apps.v1.Deployment
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -58,11 +58,17 @@ class FooReconciler(implicit context: RequestContext, lc: LoggingContext, ec: Ex
   }
 
   override def reconcile(l: client.WatchEvent[Foo]): Unit = {
-    l._object.spec.foreach { spec =>
-      getInNamespaceOption[Deployment](name = spec.deploymentName, namespace = l._object.metadata.namespace).map {
-        case Some(d) => updateDeployment(l._object, d)
-        case None => createDeployment(l._object)
-      }
+    l._type match {
+      case EventType.ADDED | EventType.MODIFIED =>
+        l._object.spec.foreach {
+          spec =>
+            getInNamespaceOption[Deployment] (name = spec.deploymentName, namespace = l._object.metadata.namespace).map {
+              case Some (d) => updateDeployment (l._object, d)
+              case None => createDeployment (l._object)
+            }
+        }
+
+      case _ =>
     }
   }
 }
