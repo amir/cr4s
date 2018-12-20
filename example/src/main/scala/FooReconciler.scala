@@ -6,15 +6,15 @@ import play.api.libs.json.Format
 import skuber.LabelSelector.IsEqualRequirement
 import skuber.api.client
 import skuber._
-import skuber.api.client.LoggingContext
+import skuber.api.client.{LoggingContext, RequestContext}
 import skuber.apps.v1.Deployment
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class FooReconciler extends Reconciler[Foo] {
+class FooReconciler(implicit context: RequestContext, lc: LoggingContext, ec: ExecutionContext) extends Reconciler[Foo] {
 
   def getInNamespaceOption[O <: ObjectResource](name: String, namespace: String)(
-    implicit fmt: Format[O], rd: ResourceDefinition[O], lc: LoggingContext, context: client.RequestContext, ec: ExecutionContext
+    implicit fmt: Format[O], rd: ResourceDefinition[O]
   ): Future[Option[O]] = {
     context.getInNamespace[O](name, namespace).map { result =>
       Some(result)
@@ -23,7 +23,7 @@ class FooReconciler extends Reconciler[Foo] {
     }
   }
 
-  def createDeployment(f: Foo)(implicit context: client.RequestContext): Future[Deployment] = {
+  def createDeployment(f: Foo): Future[Deployment] = {
     val labels = Map(
       "app" -> "nginx",
       "controller" -> f.metadata.name
@@ -47,7 +47,7 @@ class FooReconciler extends Reconciler[Foo] {
     context.create[Deployment](deployment)
   }
 
-  def updateDeployment(foo: Foo, deployment: Deployment)(implicit context: client.RequestContext): Future[Deployment] = {
+  def updateDeployment(foo: Foo, deployment: Deployment): Future[Deployment] = {
     val updated = foo.spec.fold(deployment) { spec =>
       deployment.withResourceVersion(foo.metadata.resourceVersion)
         .copy(metadata = deployment.metadata.copy(name = spec.deploymentName))
@@ -57,7 +57,7 @@ class FooReconciler extends Reconciler[Foo] {
     context.update[Deployment](updated)
   }
 
-  override def reconcile(l: client.WatchEvent[Foo])(implicit context: client.RequestContext, lc: LoggingContext, ec: ExecutionContext): Unit = {
+  override def reconcile(l: client.WatchEvent[Foo]): Unit = {
     l._object.spec.foreach { spec =>
       getInNamespaceOption[Deployment](name = spec.deploymentName, namespace = l._object.metadata.namespace).map {
         case Some(d) => updateDeployment(l._object, d)

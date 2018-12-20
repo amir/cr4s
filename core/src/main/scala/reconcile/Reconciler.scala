@@ -6,6 +6,6 @@ import skuber.ObjectResource
 
 import scala.concurrent.ExecutionContext
 
-trait Reconciler[O <: ObjectResource] {
-  def reconcile(l: WatchEvent[O])(implicit context: RequestContext, lc: LoggingContext, ec: ExecutionContext): Unit
+abstract class Reconciler[O <: ObjectResource](implicit context: RequestContext, lc: LoggingContext, ec: ExecutionContext) {
+  def reconcile(l: WatchEvent[O]): Unit
 }

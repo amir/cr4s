@@ -7,12 +7,10 @@ import controller.Controller
 import cr4s.reconcile.Reconciler
 import cr4s.manager.Manager
 import skuber._
-import skuber.api.client.{LoggingContext, RequestContext, RequestLoggingContext, WatchEvent}
+import skuber.api.client.{RequestLoggingContext, WatchEvent}
 import skuber.apps.Deployment
 import skuber.json.format._
 import skuber.json.apps.format._
-
-import scala.concurrent.ExecutionContext
 
 object Main extends App {
   implicit val system = ActorSystem()
@@ -23,12 +21,12 @@ object Main extends App {
   implicit val k8s = k8sInit
 
   val podReconciler: Reconciler[Pod] = new Reconciler[Pod] {
-    override def reconcile(l: WatchEvent[Pod])(implicit context: RequestContext, lc: LoggingContext, ec: ExecutionContext): Unit =
+    override def reconcile(l: WatchEvent[Pod]): Unit =
       println(s"[Pod] ${l._type}: ${l._object.namespace}/${l._object.name}")
   }
 
   val deploymentReconciler: Reconciler[Deployment] = new Reconciler[Deployment] {
-    override def reconcile(l: WatchEvent[Deployment])(implicit context: RequestContext, lc: LoggingContext, ec: ExecutionContext): Unit =
+    override def reconcile(l: WatchEvent[Deployment]): Unit =
       println(s"[Deployment] ${l._type}: ${l._object.namespace}/${l._object.name}")
   }
 
