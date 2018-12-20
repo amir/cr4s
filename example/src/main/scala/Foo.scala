@@ -1,23 +1,31 @@
 package cr4s
 
 import play.api.libs.functional.syntax._
-import play.api.libs.json.{Format, JsPath, Json}
-import skuber.{ListResource, NonCoreResourceSpecification, ObjectMeta, ObjectResource, ResourceDefinition, ResourceSpecification}
+import play.api.libs.json.{ Format, Json, JsPath }
+import skuber.{
+  ListResource,
+  NonCoreResourceSpecification,
+  ObjectMeta,
+  ObjectResource,
+  ResourceDefinition,
+  ResourceSpecification
+}
 import skuber.json.format._
 
 case class Foo(
-              kind: String = "Foo",
-              apiVersion: String = "v1alpha1",
-              metadata: ObjectMeta,
-              spec: Option[Foo.Spec] = None,
-              status: Option[Foo.Status] = None
-              ) extends ObjectResource
+  kind: String = "Foo",
+  apiVersion: String = "v1alpha1",
+  metadata: ObjectMeta,
+  spec: Option[Foo.Spec] = None,
+  status: Option[Foo.Status] = None
+) extends ObjectResource
 
 object Foo {
   val specification = NonCoreResourceSpecification(
-    "samplecontroller.k8s.io", "v1alpha1",
+    "samplecontroller.k8s.io",
+    "v1alpha1",
     ResourceSpecification.Scope.Namespaced,
-    ResourceSpecification.Names(plural="foos", singular="foo", kind="Foo", shortNames=List.empty[String])
+    ResourceSpecification.Names(plural = "foos", singular = "foo", kind = "Foo", shortNames = List.empty[String])
   )
 
   case class Spec(deploymentName: String, replicas: Int)

@@ -4,16 +4,18 @@ package controller
 import akka.stream.Materializer
 import cr4s.reconcile.Reconciler
 import play.api.libs.json.Format
-import skuber.{ListResource, ObjectResource, ResourceDefinition}
-import skuber.api.client.{RequestContext, WatchEvent}
-
 import scala.concurrent.ExecutionContext
+import skuber.{ ListResource, ObjectResource, ResourceDefinition }
+import skuber.api.client.{ RequestContext, WatchEvent }
 
 class Controller[O <: ObjectResource](reconciler: Reconciler[O])(
   implicit context: RequestContext,
-  listFmt: Format[ListResource[O]], listRd: ResourceDefinition[ListResource[O]],
-  objFmt: Format[O], objRd: ResourceDefinition[O],
-  ec: ExecutionContext, materializer: Materializer
+  listFmt: Format[ListResource[O]],
+  listRd: ResourceDefinition[ListResource[O]],
+  objFmt: Format[O],
+  objRd: ResourceDefinition[O],
+  ec: ExecutionContext,
+  materializer: Materializer
 ) { self =>
 
   case class EventImpl(watchEvent: WatchEvent[O]) extends Controller.Event {
