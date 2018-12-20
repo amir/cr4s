@@ -1,8 +1,9 @@
 package cr4s
 package reconcile
 
-import skuber.{K8SWatchEvent, ObjectResource}
+import skuber.api.client.WatchEvent
+import skuber.ObjectResource
 
 trait Reconciler[O <: ObjectResource] {
-  def reconcile(l: K8SWatchEvent[O]): Unit
+  def reconcile(l: WatchEvent[O]): Unit
 }

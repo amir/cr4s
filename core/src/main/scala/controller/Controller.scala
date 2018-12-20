@@ -1,38 +1,39 @@
 package cr4s
 package controller
 
-import akka.Done
-import akka.stream.{KillSwitches, Materializer, UniqueKillSwitch}
-import akka.stream.scaladsl.{Keep, Sink}
+import akka.stream.Materializer
 import cr4s.reconcile.Reconciler
 import play.api.libs.json.Format
 import skuber.{ListResource, ObjectResource, ResourceDefinition}
-import skuber.api.client.RequestContext
+import skuber.api.client.{RequestContext, WatchEvent}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 class Controller[O <: ObjectResource](reconciler: Reconciler[O])(
   implicit context: RequestContext,
   listFmt: Format[ListResource[O]], listRd: ResourceDefinition[ListResource[O]],
   objFmt: Format[O], objRd: ResourceDefinition[O],
   ec: ExecutionContext, materializer: Materializer
-) {
+) { self =>
 
-  def watch: Future[(UniqueKillSwitch, Future[Done])] = {
-    context.list[ListResource[O]].map { l =>
-      context.watchAllContinuously[O](Some(l.resourceVersion))
-        .viaMat(KillSwitches.single)(Keep.right)
-        .map { we =>
-          we._type match {
-            case _ => reconciler.reconcile(we)
-          }
-        }.async.toMat(Sink.ignore)(Keep.both).run()
-    }
+  case class EventImpl(watchEvent: WatchEvent[O]) extends Controller.Event {
+    type Object = O
+
+    override def reconciler: Reconciler[O] = self.reconciler
   }
 
-  def watch2(cache: Map[String, String]) = {
+  def watch = {
     context.list[ListResource[O]].map { l =>
-      context.watchAllContinuously[O](Some(l.resourceVersion))
+      context.watchAllContinuously[O](Some(l.resourceVersion)).map(EventImpl.apply)
     }
+  }
+}
+
+object Controller {
+  trait Event {
+    type Object <: ObjectResource
+
+    def reconciler: Reconciler[Object]
+    def watchEvent: WatchEvent[Object]
   }
 }
