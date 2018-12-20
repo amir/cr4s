@@ -7,29 +7,32 @@ import controller.Controller
 import cr4s.reconcile.Reconciler
 import cr4s.manager.Manager
 import skuber._
-import skuber.api.client.WatchEvent
+import skuber.api.client.{LoggingContext, RequestContext, RequestLoggingContext, WatchEvent}
 import skuber.apps.Deployment
 import skuber.json.format._
 import skuber.json.apps.format._
+
+import scala.concurrent.ExecutionContext
 
 object Main extends App {
   implicit val system = ActorSystem()
   implicit val materializer = ActorMaterializer()
   implicit val dispatcher = system.dispatcher
+  implicit val loggingContext = RequestLoggingContext()
 
   implicit val k8s = k8sInit
 
-  val podReconciler: Reconciler[Pod] = (l: WatchEvent[Pod]) => {
-    println(s"[Pod] ${l._type}: ${l._object.namespace}/${l._object.name}")
+  val podReconciler: Reconciler[Pod] = new Reconciler[Pod] {
+    override def reconcile(l: WatchEvent[Pod])(implicit context: RequestContext, lc: LoggingContext, ec: ExecutionContext): Unit =
+      println(s"[Pod] ${l._type}: ${l._object.namespace}/${l._object.name}")
   }
 
-  val deploymentReconciler: Reconciler[Deployment] = (l: WatchEvent[Deployment]) => {
-    println(s"[Deployment] ${l._type}: ${l._object.namespace}/${l._object.name}")
+  val deploymentReconciler: Reconciler[Deployment] = new Reconciler[Deployment] {
+    override def reconcile(l: WatchEvent[Deployment])(implicit context: RequestContext, lc: LoggingContext, ec: ExecutionContext): Unit =
+      println(s"[Deployment] ${l._type}: ${l._object.namespace}/${l._object.name}")
   }
 
-  val fooReconciler: Reconciler[Foo] = (l: WatchEvent[Foo]) => {
-    println(s"[Foo] ${l._type}: ${l._object.name}/${l._object.name}")
-  }
+  val fooReconciler = new FooReconciler()
 
   val podController = new Controller[Pod](podReconciler)
   val deploymentController = new Controller[Deployment](deploymentReconciler)
@@ -37,4 +40,5 @@ object Main extends App {
   val manager = new Manager(Seq(podController, deploymentController, fooController))
 
   manager.watch.runWith(Sink.foreach(println))
+
 }
