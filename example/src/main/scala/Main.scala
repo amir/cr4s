@@ -27,9 +27,14 @@ object Main extends App {
     println(s"[Deployment] ${l._type}: ${l._object.namespace}/${l._object.name}")
   }
 
+  val fooReconciler: Reconciler[Foo] = (l: WatchEvent[Foo]) => {
+    println(s"[Foo] ${l._type}: ${l._object.name}/${l._object.name}")
+  }
+
   val podController = new Controller[Pod](podReconciler)
   val deploymentController = new Controller[Deployment](deploymentReconciler)
-  val manager = new Manager(Seq(podController, deploymentController))
+  val fooController = new Controller[Foo](fooReconciler)
+  val manager = new Manager(Seq(podController, deploymentController, fooController))
 
   manager.watch.runWith(Sink.foreach(println))
 }
