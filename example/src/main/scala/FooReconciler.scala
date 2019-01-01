@@ -39,20 +39,25 @@ class FooReconciler(implicit context: RequestContext, lc: LoggingContext, ec: Ex
         name = f.spec.fold("foo")(_.deploymentName),
         namespace = f.metadata.namespace,
         ownerReferences = List(
-          OwnerReference(
-            apiVersion = f.apiVersion,
-            kind = f.kind,
-            name = f.metadata.name,
-            uid = f.uid,
-            controller = Some(true),
-            blockOwnerDeletion = Some(true)
-          ))
+          ownerReference(f)
+        )
       ))
       .withReplicas(f.spec.fold(1)(_.replicas))
       .withLabelSelector(LabelSelector(labels.map(x => IsEqualRequirement(x._1, x._2)).toList: _*))
       .withTemplate(template)
 
     context.create[Deployment](deployment)
+  }
+
+  def ownerReference(f: Foo): OwnerReference = {
+    OwnerReference(
+      apiVersion = f.apiVersion,
+      kind = f.kind,
+      name = f.metadata.name,
+      uid = f.uid,
+      controller = Some(true),
+      blockOwnerDeletion = Some(true)
+    )
   }
 
   def updateDeployment(foo: Foo, deployment: Deployment): Future[Deployment] = {
