@@ -92,7 +92,7 @@ object Controller2 {
     objFmt2: Format[T],
     objRd2: ResourceDefinition[T],
     c: ExecutionContext,
-    materializer: Materializer): Future[Source[controller2.Event, _]] = {
+    materializer: Materializer)/*: Future[Source[controller2.Event, _]]*/ = {
     context.list[ListResource[T]].map { l =>
       val initialSource = Source(l.items.map(l => WatchEvent(EventType.MODIFIED, l)))
       val watchedSource = context.watchAllContinuously[T](Some(l.resourceVersion))
