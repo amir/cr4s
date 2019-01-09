@@ -20,10 +20,10 @@ abstract class Controller2[S <: ObjectResource, T <: ObjectResource] {
   case class Deleted(source: S, children: List[T]) extends Event
 
   sealed trait Action
-  case class Create(child: T) extends Action
-  case class Update(child: T) extends Action
-  case class Delete(child: T) extends Action
-  case class ChangeStatus(update: S => S) extends Action
+  case class Create(child: Target) extends Action
+  case class Update(child: Target) extends Action
+  case class Delete(child: Target) extends Action
+  case class ChangeStatus(update: Source => Source) extends Action
 
   def reconciler: Event => List[Action]
 
@@ -58,7 +58,7 @@ object Controller2 {
     objFmt2: Format[T],
     objRd2: ResourceDefinition[T],
     c: ExecutionContext,
-    materializer: Materializer)/*: Future[Source[controller2.Event, _]]*/ = {
+    materializer: Materializer) /*: Future[Source[controller2.Event, _]]*/ = {
     context.list[ListResource[S]].map { l =>
       val initialSource = Source(l.items.map(l => WatchEvent(EventType.MODIFIED, l)))
       val watchedSource = context.watchAllContinuously[S](Some(l.resourceVersion))
@@ -92,7 +92,7 @@ object Controller2 {
     objFmt2: Format[T],
     objRd2: ResourceDefinition[T],
     c: ExecutionContext,
-    materializer: Materializer)/*: Future[Source[controller2.Event, _]]*/ = {
+    materializer: Materializer) /*: Future[Source[controller2.Event, _]]*/ = {
     context.list[ListResource[T]].map { l =>
       val initialSource = Source(l.items.map(l => WatchEvent(EventType.MODIFIED, l)))
       val watchedSource = context.watchAllContinuously[T](Some(l.resourceVersion))
@@ -114,4 +114,3 @@ object Controller2 {
     }
   }
 }
-
