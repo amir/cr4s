@@ -1,11 +1,11 @@
 package cr4s
 
-import controller.Controller2
+import controller.Controller
 import skuber.LabelSelector.IsEqualRequirement
 import skuber._
 import skuber.apps.Deployment
 
-class FooDeploymentController extends Controller2[Foo, Deployment] {
+class FooDeploymentController extends Controller[Foo, Deployment] {
   override def reconciler: Event => List[Action] = {
     case Modified(foo, Nil) =>
       List(Create(createDeployment(foo)))

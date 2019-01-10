@@ -3,16 +3,16 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.stream.testkit.scaladsl.TestSink
-import cr4s.controller.Controller2
+import cr4s.controller.Controller
 import skuber.Service
 import skuber.apps.Deployment
 
-class Controller2Test {
+class ControllerTest {
 
   implicit val system = ActorSystem()
   implicit val materializer = ActorMaterializer()
 
-  class TestController extends Controller2[Deployment, Service] {
+  class TestController extends Controller[Deployment, Service] {
     override def reconciler: Event => List[Action] = {
       case Modified(deployment, Nil) =>
         List(Create(Service(deployment.name)))

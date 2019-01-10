@@ -3,7 +3,7 @@ package cr4s
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Merge, Source }
-import controller.Controller2
+import controller.Controller
 import cr4s.interpreter.SkuberInterpreter
 import skuber._
 import skuber.api.client.RequestLoggingContext
@@ -19,12 +19,12 @@ object Main extends App {
   implicit val k8s = k8sInit
 
   val fooDeploymentController = new FooDeploymentController
-  val fdSourceWatch = Source.fromFutureSource(Controller2.watchSource(fooDeploymentController))
-  val fdTargetWatch = Source.fromFutureSource(Controller2.watchTarget(fooDeploymentController))
+  val fdSourceWatch = Source.fromFutureSource(Controller.watchSource(fooDeploymentController))
+  val fdTargetWatch = Source.fromFutureSource(Controller.watchTarget(fooDeploymentController))
 
   val fooServiceController = new FooServiceController
-  val fsSourceWatch = Source.fromFutureSource(Controller2.watchSource(fooServiceController))
-  val fsTargetWatch = Source.fromFutureSource(Controller2.watchTarget(fooServiceController))
+  val fsSourceWatch = Source.fromFutureSource(Controller.watchSource(fooServiceController))
+  val fsTargetWatch = Source.fromFutureSource(Controller.watchTarget(fooServiceController))
 
   val fdInterpreter = new SkuberInterpreter(k8s, fooDeploymentController)
   Source
