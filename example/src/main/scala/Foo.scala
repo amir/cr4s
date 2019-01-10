@@ -1,51 +1,33 @@
 package cr4s
-
-import play.api.libs.functional.syntax._
-import play.api.libs.json.{ Format, Json, JsPath }
-import skuber.{
-  ListResource,
-  NonCoreResourceSpecification,
-  ObjectMeta,
-  ObjectResource,
-  ResourceDefinition,
-  ResourceSpecification
-}
-import skuber.json.format._
-
-case class Foo(
-  kind: String = "Foo",
-  apiVersion: String = "v1alpha1",
-  metadata: ObjectMeta,
-  spec: Option[Foo.Spec] = None,
-  status: Option[Foo.Status] = None
-) extends ObjectResource
+import play.api.libs.json.{ Format, Json }
+import skuber.{ CustomResource, ListResource, ResourceDefinition }
+import skuber.ResourceSpecification.Subresources
+import skuber.apiextensions.CustomResourceDefinition
 
 object Foo {
-  val specification = NonCoreResourceSpecification(
-    "samplecontroller.k8s.io",
-    "v1alpha1",
-    ResourceSpecification.Scope.Namespaced,
-    ResourceSpecification.Names(plural = "foos", singular = "foo", kind = "Foo", shortNames = List.empty[String])
-  )
+
+  type FooResource = CustomResource[Foo.Spec, Foo.Status]
+  type FooResourceList = ListResource[FooResource]
 
   case class Spec(deploymentName: String, replicas: Int)
+  case class Status(replicas: Int, availableReplicas: Int)
+
   implicit val specFormat: Format[Spec] = Json.format[Spec]
+  implicit val statusFormat: Format[Status] = Json.format[Status]
 
-  case class Status(replicas: Int = 0, availableReplicas: Int = 0)
-  implicit val statusFormat: Format[Status] = (
-    (JsPath \ "replicas").formatMaybeEmptyInt() and
-      (JsPath \ "availableReplicas").formatMaybeEmptyInt()
-  )(Status.apply _, unlift(Status.unapply))
+  implicit val fooResourceDefinition = ResourceDefinition[FooResource](
+    group = "samplecontroller.k8s.io",
+    version = "v1alpha1",
+    kind = "Foo",
+    plural = Some("foos"),
+    singular = Some("foo"),
+    shortNames = List.empty[String],
+    subresources = Some(Subresources().withStatusSubresource)
+  )
 
-  implicit val fooFormat: Format[Foo] = (
-    objFormat and
-      (JsPath \ "spec").formatNullable[Spec] and
-      (JsPath \ "status").formatNullable[Status]
-  )(Foo.apply _, unlift(Foo.unapply))
+  implicit val statusSubresourceEnabled = CustomResource.statusMethodsEnabler[FooResource]
 
-  type FooList = ListResource[Foo]
-  implicit val fooListFormat: Format[FooList] = ListResourceFormat[Foo]
+  val crd = CustomResourceDefinition[FooResource]
 
-  implicit val fooDef = new ResourceDefinition[Foo] { def spec: ResourceSpecification = specification }
-  implicit val fooListDef = new ResourceDefinition[FooList] { def spec: ResourceSpecification = specification }
+  def apply(name: String, spec: Spec): CustomResource[Spec, Status] = CustomResource[Spec, Status](spec).withName(name)
 }

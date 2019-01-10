@@ -1,8 +1,10 @@
 package cr4s
+
+import Foo.FooResource
 import cr4s.controller.Controller
 import skuber.{ ObjectMeta, Service }
 
-class FooServiceController extends Controller[Foo, Service] {
+class FooServiceController extends Controller[FooResource, Service] {
   override def reconciler: Event => List[Action] = {
     case Modified(foo, Nil) =>
       List(Create(createService(foo)))
@@ -12,13 +14,13 @@ class FooServiceController extends Controller[Foo, Service] {
     case Deleted(_, services) => services.map(Delete)
   }
 
-  def createService(f: Foo): Service = {
+  def createService(f: FooResource): Service = {
 
     val spec = Service.Spec(ports = List(Service.Port(port = 80)),
                             selector = Map("app" -> "nginx", "controller" -> f.metadata.name))
 
     Service(metadata = ObjectMeta(
-              name = f.spec.fold(f.name)(_.deploymentName),
+              name = f.spec.deploymentName,
               ownerReferences = List(ownerReference(f))
             ),
             spec = Some(spec))
