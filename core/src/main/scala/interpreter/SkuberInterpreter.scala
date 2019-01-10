@@ -1,13 +1,13 @@
 package cr4s
 package interpreter
+
 import akka.NotUsed
 import akka.stream.scaladsl.{ Flow, Sink }
 import cr4s.controller.Controller
 import play.api.libs.json.Format
+import scala.concurrent.ExecutionContext
 import skuber.{ ObjectResource, ResourceDefinition }
 import skuber.api.client.RequestContext
-
-import scala.concurrent.ExecutionContext
 
 class SkuberInterpreter[C <: Controller[_ <: ObjectResource, _ <: ObjectResource]](k8s: RequestContext,
                                                                                    controller2: C) {

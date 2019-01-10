@@ -97,7 +97,8 @@ object Controller {
       val initialSource = Source(l.items.map(l => WatchEvent(EventType.MODIFIED, l)))
       val watchedSource = context.watchAllContinuously[T](Some(l.resourceVersion))
 
-      //TODO Filter the target events to ones with the label of contoller then map the lookup the ownerReference and map to modify events of this
+      //TODO Filter the target events to ones with the label of contoller then
+      // map the lookup the ownerReference and map to modify events of this
 
       initialSource
         .concat(watchedSource)
