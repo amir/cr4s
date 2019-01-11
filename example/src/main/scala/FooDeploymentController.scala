@@ -1,6 +1,7 @@
 package cr4s
 
 import Foo.FooResource
+import com.softwaremill.quicklens._
 import controller.Controller
 import skuber._
 import skuber.LabelSelector.IsEqualRequirement
@@ -17,7 +18,7 @@ class FooDeploymentController extends Controller[FooResource, Deployment] {
           case Some(i) =>
             if (foo.spec.replicas == i) None
             else
-              Some(Update(deployment.copy(spec = deployment.spec.map(a => a.copy(replicas = Some(foo.spec.replicas))))))
+              Some(Update(deployment.modify(_.spec.each.replicas).setTo(Some(foo.spec.replicas))))
 
           case _ => None
         }

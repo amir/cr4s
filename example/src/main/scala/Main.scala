@@ -3,7 +3,6 @@ package cr4s
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Merge, Source }
-import controller.Controller
 import cr4s.interpreter.SkuberInterpreter
 import skuber._
 import skuber.api.client.RequestLoggingContext

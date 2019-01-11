@@ -4,7 +4,7 @@ package controller
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 import play.api.libs.json.Format
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.ExecutionContext
 import skuber.{ LabelSelector, ListResource, ObjectResource, OwnerReference, ResourceDefinition }
 import skuber.LabelSelector.IsEqualRequirement
 import skuber.api.client.{ EventType, RequestContext, WatchEvent }
