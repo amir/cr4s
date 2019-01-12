@@ -9,7 +9,7 @@ import skuber.{ LabelSelector, ListResource, ObjectResource, OwnerReference, Res
 import skuber.LabelSelector.IsEqualRequirement
 import skuber.api.client.{ EventType, RequestContext, WatchEvent }
 
-abstract class Controller[S <: ObjectResource, T <: ObjectResource] {
+abstract class Reconciler[S <: ObjectResource, T <: ObjectResource] {
 
   type Source = S
   type Target = T

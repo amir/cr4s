@@ -3,13 +3,13 @@ package interpreter
 
 import akka.NotUsed
 import akka.stream.scaladsl.{ Flow, Sink }
-import cr4s.controller.Controller
+import cr4s.controller.Reconciler
 import play.api.libs.json.Format
 import scala.concurrent.ExecutionContext
 import skuber.{ ObjectResource, ResourceDefinition }
 import skuber.api.client.RequestContext
 
-class SkuberInterpreter[C <: Controller[_ <: ObjectResource, _ <: ObjectResource]](k8s: RequestContext,
+class SkuberInterpreter[C <: Reconciler[_ <: ObjectResource, _ <: ObjectResource]](k8s: RequestContext,
                                                                                    controller2: C) {
 
   def sink(implicit sourceFmt: Format[controller2.Source],

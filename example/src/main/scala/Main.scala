@@ -17,11 +17,11 @@ object Main extends App {
 
   implicit val k8s = k8sInit
 
-  val fooDeploymentController = new FooDeploymentController
+  val fooDeploymentController = new FooDeploymentReconciler
   val fdSourceWatch = Source.fromFutureSource(fooDeploymentController.watchSource)
   val fdTargetWatch = Source.fromFutureSource(fooDeploymentController.watchTarget)
 
-  val fooServiceController = new FooServiceController
+  val fooServiceController = new FooServiceReconciler
   val fsSourceWatch = Source.fromFutureSource(fooServiceController.watchSource)
   val fsTargetWatch = Source.fromFutureSource(fooServiceController.watchTarget)
 

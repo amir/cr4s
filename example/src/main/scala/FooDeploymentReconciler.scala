@@ -2,12 +2,12 @@ package cr4s
 
 import Foo.FooResource
 import com.softwaremill.quicklens._
-import controller.Controller
+import controller.Reconciler
 import skuber._
 import skuber.LabelSelector.IsEqualRequirement
 import skuber.apps.Deployment
 
-class FooDeploymentController extends Controller[FooResource, Deployment] {
+class FooDeploymentReconciler extends Reconciler[FooResource, Deployment] {
   override def reconciler: Event => List[Action] = {
     case Modified(foo, Nil) =>
       List(Create(createDeployment(foo)))

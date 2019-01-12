@@ -1,10 +1,10 @@
 package cr4s
 
 import Foo.FooResource
-import cr4s.controller.Controller
+import cr4s.controller.Reconciler
 import skuber.{ ObjectMeta, Service }
 
-class FooServiceController extends Controller[FooResource, Service] {
+class FooServiceReconciler extends Reconciler[FooResource, Service] {
   override def reconciler: Event => List[Action] = {
     case Modified(foo, Nil) =>
       List(Create(createService(foo)))
