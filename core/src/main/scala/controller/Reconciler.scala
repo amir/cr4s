@@ -5,6 +5,7 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 import play.api.libs.json.Format
 import scala.concurrent.ExecutionContext
+import shapeless.{ HList, LabelledGeneric }
 import skuber.{ LabelSelector, ListResource, ObjectResource, OwnerReference, ResourceDefinition }
 import skuber.LabelSelector.IsEqualRequirement
 import skuber.api.client.{ EventType, RequestContext, WatchEvent }
@@ -92,7 +93,6 @@ abstract class Reconciler[S <: ObjectResource, T <: ObjectResource] {
     }
   }
 
-  //def ownerReference(source: Source): OwnerReference = {
   def ownerReference[O <: ObjectResource](o: O): OwnerReference = {
     OwnerReference(
       apiVersion = o.apiVersion,
@@ -104,9 +104,11 @@ abstract class Reconciler[S <: ObjectResource, T <: ObjectResource] {
     )
   }
 
-  // TODO Figure out how to generically update the target's metadata
-  /*def addOwnerReference(source: Source, target: Target): Target = {
-    val ownerRefs = target.metadata.ownerReferences.filterNot(or => or.kind == source.kind && or.uid == source.uid)
-    target.copy(metadata = target.metadata.copy(ownerReferences = ownerReference(source) :: ownerRefs))
-  }*/
+  import GenericResourceModifiers._
+
+  def addOwnerReference[R <: HList](source: S, target: T)(implicit generic: LabelledGeneric.Aux[T, R],
+                                                          modifier: MetadataModifier[R]): T = {
+
+    addOwner(target, ownerReference(source))
+  }
 }

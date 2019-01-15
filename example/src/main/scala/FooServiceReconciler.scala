@@ -19,10 +19,11 @@ class FooServiceReconciler extends Reconciler[FooResource, Service] {
     val spec = Service.Spec(ports = List(Service.Port(port = 80)),
                             selector = Map("app" -> "nginx", "controller" -> f.metadata.name))
 
-    Service(metadata = ObjectMeta(
-              name = f.spec.deploymentName,
-              ownerReferences = List(ownerReference(f))
-            ),
-            spec = Some(spec))
+    val service = Service(metadata = ObjectMeta(
+                            name = f.spec.deploymentName,
+                          ),
+                          spec = Some(spec))
+
+    addOwnerReference(f, service)
   }
 }

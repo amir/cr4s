@@ -40,7 +40,7 @@ class FooDeploymentReconciler extends Reconciler[FooResource, Deployment] {
 
     val template = Pod.Template.Spec(metadata = ObjectMeta()).addLabels(labels).addContainer(container)
 
-    Deployment(
+    val deployment = Deployment(
       metadata = ObjectMeta(
         name = f.spec.deploymentName,
         namespace = f.metadata.namespace,
@@ -49,6 +49,8 @@ class FooDeploymentReconciler extends Reconciler[FooResource, Deployment] {
       .withReplicas(f.spec.replicas)
       .withLabelSelector(LabelSelector(labels.map(x => IsEqualRequirement(x._1, x._2)).toList: _*))
       .withTemplate(template)
+
+    addOwnerReference(f, deployment)
   }
 
 }
