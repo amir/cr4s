@@ -1,5 +1,5 @@
 package cr4s
-package controller
+package reconciler
 
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source

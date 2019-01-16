@@ -1,7 +1,7 @@
 package cr4s
 
 import Foo.FooResource
-import cr4s.controller.Reconciler
+import reconciler.Reconciler
 import skuber.{ ObjectMeta, Service }
 
 class FooServiceReconciler extends Reconciler[FooResource, Service] {

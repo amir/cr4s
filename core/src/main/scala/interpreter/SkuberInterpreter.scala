@@ -3,7 +3,7 @@ package interpreter
 
 import akka.NotUsed
 import akka.stream.scaladsl.Flow
-import cr4s.controller.Reconciler
+import cr4s.reconciler.Reconciler
 import play.api.libs.json.Format
 import scala.concurrent.{ ExecutionContext, Future }
 import skuber.{ ObjectResource, ResourceDefinition }
