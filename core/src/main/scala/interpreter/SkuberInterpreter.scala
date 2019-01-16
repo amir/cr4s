@@ -14,35 +14,35 @@ class SkuberInterpreter[C <: Reconciler[_ <: ObjectResource, _ <: ObjectResource
                              sourceResourceDefinition: ResourceDefinition[controller.Source],
                              targetFmt: Format[controller.Target],
                              targetResourceDefinition: ResourceDefinition[controller.Target],
-                             ec: ExecutionContext): Flow[List[C#Action], C#ActionResult, NotUsed] =
+                             ec: ExecutionContext): Flow[List[C#Action], ActionResult, NotUsed] =
     Flow[List[C#Action]].mapConcat(identity).mapAsync(parallelism) {
       case controller.Create(c) =>
-        val action = controller.CreateAction(c.metadata.name, c.metadata.namespace, c.kind)
+        val action = CreateAction(c.metadata.name, c.metadata.namespace, c.kind)
         k8s.create[controller.Target](c).map { _ =>
-          controller.ActionResult(action, controller.Success)
+          ActionResult(action, Success)
         } recover {
-          case t: Throwable => controller.ActionResult(action, controller.Failure(t))
+          case t: Throwable => ActionResult(action, Failure(t))
         }
 
       case controller.Update(c) =>
-        val action = controller.UpdateAction(c.metadata.name, c.metadata.namespace, c.kind)
+        val action = UpdateAction(c.metadata.name, c.metadata.namespace, c.kind)
         k8s.update[controller.Target](c).map { _ =>
-          controller.ActionResult(action, controller.Success)
+          ActionResult(action, Success)
         } recover {
-          case t: Throwable => controller.ActionResult(action, controller.Failure(t))
+          case t: Throwable => ActionResult(action, Failure(t))
         }
 
       case controller.Delete(c) =>
-        val action = controller.DeleteAction(c.metadata.name, c.metadata.namespace, c.kind)
+        val action = DeleteAction(c.metadata.name, c.metadata.namespace, c.kind)
         k8s.delete[controller.Target](c.name).map { _ =>
-          controller.ActionResult(action, controller.Success)
+          ActionResult(action, Success)
         } recover {
-          case t: Throwable => controller.ActionResult(action, controller.Failure(t))
+          case t: Throwable => ActionResult(action, Failure(t))
         }
 
       case controller.ChangeStatus(_) =>
         Future {
-          controller.ActionResult(controller.ChangeStatusAction("", "", ""), controller.Success)
+          ActionResult(ChangeStatusAction("", "", ""), Success)
         }
     }
 }
