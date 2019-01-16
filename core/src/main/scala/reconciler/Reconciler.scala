@@ -31,7 +31,7 @@ abstract class Reconciler[S <: ObjectResource, T <: ObjectResource] {
   def reconciler: Event => List[Action]
 
   // scalastyle:off
-  def watchSource(implicit context: RequestContext,
+  def watchSource(parallelism: Int)(implicit context: RequestContext,
                   sourceFormat: Format[S],
                   sourceListFormat: Format[ListResource[S]],
                   sourceResourceDefinition: ResourceDefinition[S],
@@ -46,7 +46,7 @@ abstract class Reconciler[S <: ObjectResource, T <: ObjectResource] {
       val initialSource = Source(l.items.map(l => WatchEvent(EventType.MODIFIED, l)))
       val watchedSource = context.watchAllContinuously[S](Some(l.resourceVersion))
 
-      initialSource.concat(watchedSource).mapAsync(1) { watchEvent =>
+      initialSource.concat(watchedSource).mapAsync(parallelism) { watchEvent =>
         val labelSelector = LabelSelector(IsEqualRequirement("controller", watchEvent._object.name))
         val targetList = context.listSelected[TargetList](labelSelector).map { x =>
           x.items.filter(_.metadata.ownerReferences.contains(ownerReference(watchEvent._object)))
@@ -62,7 +62,7 @@ abstract class Reconciler[S <: ObjectResource, T <: ObjectResource] {
     }
   }
 
-  def watchTarget(implicit context: RequestContext,
+  def watchTarget(parallelism: Int)(implicit context: RequestContext,
                   sourceFormat: Format[S],
                   sourceListFormat: Format[ListResource[S]],
                   sourceResourceDefinition: ResourceDefinition[S],
@@ -83,7 +83,7 @@ abstract class Reconciler[S <: ObjectResource, T <: ObjectResource] {
       initialSource
         .concat(watchedSource)
         .filter(watchEvent => watchEvent._object.metadata.labels.contains("controller"))
-        .mapAsync(1) { watchEvent =>
+        .mapAsync(parallelism) { watchEvent =>
           //watchEvent._object.metadata.ownerReferences.find()
 
           val controller = context.get[Source](watchEvent._object.metadata.labels("controller"))

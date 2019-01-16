@@ -15,6 +15,7 @@ class FooDeploymentReconciler extends Reconciler[FooResource, Deployment] {
       case d @ Delete(_) => d
     }
   }
+
   override def reconciler: Event => List[Action] = {
     case Modified(foo, Nil) =>
       List(Create(createDeployment(foo)))

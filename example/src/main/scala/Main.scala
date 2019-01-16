@@ -18,12 +18,12 @@ object Main extends App {
   implicit val k8s = k8sInit
 
   val fooDeploymentController = new FooDeploymentReconciler
-  val fdSourceWatch = Source.fromFutureSource(fooDeploymentController.watchSource)
-  val fdTargetWatch = Source.fromFutureSource(fooDeploymentController.watchTarget)
+  val fdSourceWatch = Source.fromFutureSource(fooDeploymentController.watchSource(1))
+  val fdTargetWatch = Source.fromFutureSource(fooDeploymentController.watchTarget(1))
 
   val fooServiceController = new FooServiceReconciler
-  val fsSourceWatch = Source.fromFutureSource(fooServiceController.watchSource)
-  val fsTargetWatch = Source.fromFutureSource(fooServiceController.watchTarget)
+  val fsSourceWatch = Source.fromFutureSource(fooServiceController.watchSource(1))
+  val fsTargetWatch = Source.fromFutureSource(fooServiceController.watchTarget(1))
 
   val fdInterpreter = new SkuberInterpreter(k8s, fooDeploymentController)
   Source
