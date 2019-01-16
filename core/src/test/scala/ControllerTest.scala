@@ -3,7 +3,7 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import akka.stream.testkit.scaladsl.TestSink
-import cr4s.controller.Reconciler
+import cr4s.reconciler.Reconciler
 import skuber.Service
 import skuber.apps.Deployment
 
