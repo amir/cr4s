@@ -1,6 +1,5 @@
 package cr4s
 
-import com.softwaremill.quicklens._
 import shapeless._
 import shapeless.ops.record._
 import skuber.{ ObjectMeta, ObjectResource, OwnerReference }

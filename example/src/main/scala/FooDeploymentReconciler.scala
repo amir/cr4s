@@ -44,7 +44,6 @@ class FooDeploymentReconciler extends Reconciler[FooResource, Deployment] {
       metadata = ObjectMeta(
         name = f.spec.deploymentName,
         namespace = f.metadata.namespace,
-        ownerReferences = List(ownerReference(f))
       ))
       .withReplicas(f.spec.replicas)
       .withLabelSelector(LabelSelector(labels.map(x => IsEqualRequirement(x._1, x._2)).toList: _*))

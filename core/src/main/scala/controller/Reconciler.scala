@@ -28,6 +28,7 @@ abstract class Reconciler[S <: ObjectResource, T <: ObjectResource] {
 
   def reconciler: Event => List[Action]
 
+  // scalastyle:off
   def watchSource(implicit context: RequestContext,
                   sourceFormat: Format[S],
                   sourceListFormat: Format[ListResource[S]],
@@ -45,16 +46,15 @@ abstract class Reconciler[S <: ObjectResource, T <: ObjectResource] {
 
       initialSource.concat(watchedSource).mapAsync(1) { watchEvent =>
         val labelSelector = LabelSelector(IsEqualRequirement("controller", watchEvent._object.name))
-        val deps = context.listSelected[TargetList](labelSelector).map { x =>
+        val targetList = context.listSelected[TargetList](labelSelector).map { x =>
           x.items.filter(_.metadata.ownerReferences.contains(ownerReference(watchEvent._object)))
         }
 
-        deps map { deployments =>
-          val event = watchEvent._type match {
-            case EventType.ADDED | EventType.MODIFIED => Modified(watchEvent._object, deployments)
-            case EventType.DELETED                    => Deleted(watchEvent._object, deployments)
+        targetList map { targets =>
+          watchEvent._type match {
+            case EventType.ADDED | EventType.MODIFIED => Modified(watchEvent._object, targets)
+            case EventType.DELETED                    => Deleted(watchEvent._object, targets)
           }
-          event
         }
       }
     }
@@ -92,6 +92,7 @@ abstract class Reconciler[S <: ObjectResource, T <: ObjectResource] {
         }
     }
   }
+  // scalastyle:on
 
   def ownerReference[O <: ObjectResource](o: O): OwnerReference = {
     OwnerReference(
