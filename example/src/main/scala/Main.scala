@@ -2,7 +2,7 @@ package cr4s
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{ Merge, Source }
+import akka.stream.scaladsl.{ Merge, Sink, Source }
 import cr4s.interpreter.SkuberInterpreter
 import skuber._
 import skuber.api.client.RequestLoggingContext
@@ -29,11 +29,13 @@ object Main extends App {
   Source
     .combine(fdSourceWatch, fdTargetWatch)(Merge(_))
     .map(fooDeploymentController.reconciler)
-    .runWith(fdInterpreter.sink)
+    .via(fdInterpreter.flow(1))
+    .runWith(Sink.foreach(x => k8s.log.info("{}", x)))
 
   val fsInterpreter = new SkuberInterpreter(k8s, fooServiceController)
   Source
     .combine(fsSourceWatch, fsTargetWatch)(Merge(_))
     .map(fooServiceController.reconciler)
-    .runWith(fsInterpreter.sink)
+    .via(fsInterpreter.flow(1))
+    .runWith(Sink.foreach(x => k8s.log.info("{}", x)))
 }

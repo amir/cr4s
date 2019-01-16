@@ -8,6 +8,13 @@ import skuber.LabelSelector.IsEqualRequirement
 import skuber.apps.Deployment
 
 class FooDeploymentReconciler extends Reconciler[FooResource, Deployment] {
+  def wrapReconciler(recon: Event => List[Action]): Event => List[Action] = { event =>
+    recon(event) map {
+      case Create(t)     => Create(addOwnerReference(event.source, t))
+      case Update(t)     => Update(addOwnerReference(event.source, t))
+      case d @ Delete(_) => d
+    }
+  }
   override def reconciler: Event => List[Action] = {
     case Modified(foo, Nil) =>
       List(Create(createDeployment(foo)))
