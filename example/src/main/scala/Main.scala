@@ -2,8 +2,8 @@ package cr4s
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Merge, Sink, Source}
-import cr4s.interpreter.{CustomResourceSkuberInterpreter, SkuberInterpreter}
+import akka.stream.scaladsl.{ Merge, Sink, Source }
+import cr4s.interpreter.{ CustomResourceSkuberInterpreter, SkuberInterpreter }
 import skuber._
 import skuber.api.client.RequestLoggingContext
 import skuber.json.apps.format._

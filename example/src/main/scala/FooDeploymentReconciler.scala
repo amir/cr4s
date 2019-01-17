@@ -2,7 +2,7 @@ package cr4s
 
 import Foo.FooResource
 import com.softwaremill.quicklens._
-import reconciler.{CustomResourceReconciler, Reconciler}
+import reconciler.CustomResourceReconciler
 import skuber._
 import skuber.LabelSelector.IsEqualRequirement
 import skuber.apps.Deployment

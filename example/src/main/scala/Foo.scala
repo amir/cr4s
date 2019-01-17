@@ -1,4 +1,5 @@
 package cr4s
+
 import play.api.libs.json.{ Format, Json }
 import skuber.{ CustomResource, ListResource, ResourceDefinition }
 import skuber.ResourceSpecification.Subresources
