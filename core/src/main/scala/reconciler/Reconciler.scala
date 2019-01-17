@@ -94,21 +94,16 @@ abstract class Reconciler[S <: ObjectResource, T <: ObjectResource] {
       val initialSource = Source(l.items.map(l => WatchEvent(EventType.MODIFIED, l)))
       val watchedSource = context.watchAllContinuously[T](Some(l.resourceVersion))
 
-      //TODO Filter the target events to ones with the label of contoller then
-      // map the lookup the ownerReference and map to modify events of this
-
       initialSource
         .concat(watchedSource)
         .filter(watchEvent => watchEvent._object.metadata.labels.contains("controller"))
         .mapAsync(parallelism) { watchEvent =>
-          //watchEvent._object.metadata.ownerReferences.find()
-
-          val controller = context.get[Source](watchEvent._object.metadata.labels("controller"))
-
-          controller map { parent =>
-            Modified(parent, List(watchEvent._object))
+          context.get[Source](watchEvent._object.metadata.labels("controller")) map { parent =>
+            (parent, watchEvent._object)
           }
         }
+        .filter { case (p, ch) => ch.metadata.ownerReferences.exists(_.uid == p.metadata.uid) }
+        .map { case (parent, child) => Modified(parent, List(child)) }
     }
   }
   // scalastyle:on
