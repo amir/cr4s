@@ -5,7 +5,7 @@ import reconciler.Reconciler
 import skuber.{ ObjectMeta, Service }
 
 class FooServiceReconciler extends Reconciler[FooResource, Service] {
-  override def reconciler: Event => List[Action] = {
+  override def doReconcile: Event => List[Action] = {
     case Modified(foo, Nil) =>
       List(Create(createService(foo)))
 
@@ -19,11 +19,10 @@ class FooServiceReconciler extends Reconciler[FooResource, Service] {
     val spec = Service.Spec(ports = List(Service.Port(port = 80)),
                             selector = Map("app" -> "nginx", "controller" -> f.metadata.name))
 
-    val service = Service(metadata = ObjectMeta(
-                            name = f.spec.deploymentName,
-                          ),
-                          spec = Some(spec))
+    Service(metadata = ObjectMeta(
+              name = f.spec.deploymentName,
+            ),
+            spec = Some(spec))
 
-    addOwnerReference(f, service)
   }
 }

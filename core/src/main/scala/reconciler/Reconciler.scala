@@ -1,6 +1,7 @@
 package cr4s
 package reconciler
 
+import GenericResourceModifiers._
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 import play.api.libs.json.Format
@@ -28,20 +29,36 @@ abstract class Reconciler[S <: ObjectResource, T <: ObjectResource] {
   case class Delete(child: Target) extends Action
   case class ChangeStatus(update: Source => Source) extends Action
 
-  def reconciler: Event => List[Action]
+  def reconciler[R <: HList](implicit generic: LabelledGeneric.Aux[T, R],
+                             modifier: MetadataModifier[R]): Event => List[Action] = {
+    wrapReconciler(doReconcile)
+  }
+
+  def doReconcile: Event => List[Action]
+
+  def wrapReconciler[R <: HList](recon: Event => List[Action])(implicit generic: LabelledGeneric.Aux[T, R],
+                                                               modifier: MetadataModifier[R]): Event => List[Action] = {
+    event =>
+      recon(event) map {
+        case Create(t)            => Create(addOwnerReference(event.source, t))
+        case Update(t)            => Update(addOwnerReference(event.source, t))
+        case d @ Delete(_)        => d
+        case cs @ ChangeStatus(_) => cs
+      }
+  }
 
   // scalastyle:off
   def watchSource(parallelism: Int)(implicit context: RequestContext,
-                  sourceFormat: Format[S],
-                  sourceListFormat: Format[ListResource[S]],
-                  sourceResourceDefinition: ResourceDefinition[S],
-                  sourceListResourceDefinition: ResourceDefinition[ListResource[S]],
-                  targetFormat: Format[T],
-                  targetListFormat: Format[ListResource[T]],
-                  targetResourceDefinition: ResourceDefinition[T],
-                  targetListResourceDefinition: ResourceDefinition[ListResource[T]],
-                  c: ExecutionContext,
-                  materializer: Materializer) = {
+                                    sourceFormat: Format[S],
+                                    sourceListFormat: Format[ListResource[S]],
+                                    sourceResourceDefinition: ResourceDefinition[S],
+                                    sourceListResourceDefinition: ResourceDefinition[ListResource[S]],
+                                    targetFormat: Format[T],
+                                    targetListFormat: Format[ListResource[T]],
+                                    targetResourceDefinition: ResourceDefinition[T],
+                                    targetListResourceDefinition: ResourceDefinition[ListResource[T]],
+                                    c: ExecutionContext,
+                                    materializer: Materializer) = {
     context.list[ListResource[S]].map { l =>
       val initialSource = Source(l.items.map(l => WatchEvent(EventType.MODIFIED, l)))
       val watchedSource = context.watchAllContinuously[S](Some(l.resourceVersion))
@@ -63,16 +80,16 @@ abstract class Reconciler[S <: ObjectResource, T <: ObjectResource] {
   }
 
   def watchTarget(parallelism: Int)(implicit context: RequestContext,
-                  sourceFormat: Format[S],
-                  sourceListFormat: Format[ListResource[S]],
-                  sourceResourceDefinition: ResourceDefinition[S],
-                  sourceListResourceDefinition: ResourceDefinition[ListResource[S]],
-                  targetFormat: Format[T],
-                  targetListFormat: Format[ListResource[T]],
-                  targetResourceDefinition: ResourceDefinition[T],
-                  targetListResourceDefinition: ResourceDefinition[ListResource[T]],
-                  c: ExecutionContext,
-                  materializer: Materializer) = {
+                                    sourceFormat: Format[S],
+                                    sourceListFormat: Format[ListResource[S]],
+                                    sourceResourceDefinition: ResourceDefinition[S],
+                                    sourceListResourceDefinition: ResourceDefinition[ListResource[S]],
+                                    targetFormat: Format[T],
+                                    targetListFormat: Format[ListResource[T]],
+                                    targetResourceDefinition: ResourceDefinition[T],
+                                    targetListResourceDefinition: ResourceDefinition[ListResource[T]],
+                                    c: ExecutionContext,
+                                    materializer: Materializer) = {
     context.list[ListResource[T]].map { l =>
       val initialSource = Source(l.items.map(l => WatchEvent(EventType.MODIFIED, l)))
       val watchedSource = context.watchAllContinuously[T](Some(l.resourceVersion))
@@ -106,8 +123,6 @@ abstract class Reconciler[S <: ObjectResource, T <: ObjectResource] {
       blockOwnerDeletion = Some(true)
     )
   }
-
-  import GenericResourceModifiers._
 
   def addOwnerReference[R <: HList](source: S, target: T)(implicit generic: LabelledGeneric.Aux[T, R],
                                                           modifier: MetadataModifier[R]): T = {

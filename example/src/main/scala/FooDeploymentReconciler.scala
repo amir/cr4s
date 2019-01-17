@@ -8,15 +8,8 @@ import skuber.LabelSelector.IsEqualRequirement
 import skuber.apps.Deployment
 
 class FooDeploymentReconciler extends Reconciler[FooResource, Deployment] {
-  def wrapReconciler(recon: Event => List[Action]): Event => List[Action] = { event =>
-    recon(event) map {
-      case Create(t)     => Create(addOwnerReference(event.source, t))
-      case Update(t)     => Update(addOwnerReference(event.source, t))
-      case d @ Delete(_) => d
-    }
-  }
 
-  override def reconciler: Event => List[Action] = {
+  override def doReconcile: Event => List[Action] = {
     case Modified(foo, Nil) =>
       List(Create(createDeployment(foo)))
 
@@ -48,7 +41,7 @@ class FooDeploymentReconciler extends Reconciler[FooResource, Deployment] {
 
     val template = Pod.Template.Spec(metadata = ObjectMeta()).addLabels(labels).addContainer(container)
 
-    val deployment = Deployment(
+    Deployment(
       metadata = ObjectMeta(
         name = f.spec.deploymentName,
         namespace = f.metadata.namespace,
@@ -56,8 +49,6 @@ class FooDeploymentReconciler extends Reconciler[FooResource, Deployment] {
       .withReplicas(f.spec.replicas)
       .withLabelSelector(LabelSelector(labels.map(x => IsEqualRequirement(x._1, x._2)).toList: _*))
       .withTemplate(template)
-
-    addOwnerReference(f, deployment)
   }
 
 }
