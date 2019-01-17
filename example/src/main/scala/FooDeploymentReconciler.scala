@@ -2,16 +2,19 @@ package cr4s
 
 import Foo.FooResource
 import com.softwaremill.quicklens._
-import reconciler.Reconciler
+import reconciler.{CustomResourceReconciler, Reconciler}
 import skuber._
 import skuber.LabelSelector.IsEqualRequirement
 import skuber.apps.Deployment
 
-class FooDeploymentReconciler extends Reconciler[FooResource, Deployment] {
+class FooDeploymentReconciler extends CustomResourceReconciler[FooResource, Deployment] {
 
   override def doReconcile: Event => List[Action] = {
     case Modified(foo, Nil) =>
-      List(Create(createDeployment(foo)))
+      List(
+        Create(createDeployment(foo)),
+        ChangeStatus(foo.name, x => x.withStatus(Foo.Status(1, 0)))
+      )
 
     case Modified(foo, deployment :: tail) =>
       val updateAction: Option[Action] =

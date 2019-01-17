@@ -7,7 +7,7 @@ import akka.stream.scaladsl.Source
 import play.api.libs.json.Format
 import scala.concurrent.ExecutionContext
 import shapeless.{ HList, LabelledGeneric }
-import skuber.{ LabelSelector, ListResource, ObjectResource, OwnerReference, ResourceDefinition }
+import skuber.{ CustomResource, LabelSelector, ListResource, ObjectResource, OwnerReference, ResourceDefinition }
 import skuber.LabelSelector.IsEqualRequirement
 import skuber.api.client.{ EventType, RequestContext, WatchEvent }
 
@@ -27,7 +27,6 @@ abstract class Reconciler[S <: ObjectResource, T <: ObjectResource] {
   case class Create(child: Target) extends Action
   case class Update(child: Target) extends Action
   case class Delete(child: Target) extends Action
-  case class ChangeStatus(update: Source => Source) extends Action
 
   def reconciler[R <: HList](implicit generic: LabelledGeneric.Aux[T, R],
                              modifier: MetadataModifier[R]): Event => List[Action] = {
@@ -40,10 +39,9 @@ abstract class Reconciler[S <: ObjectResource, T <: ObjectResource] {
                                                                modifier: MetadataModifier[R]): Event => List[Action] = {
     event =>
       recon(event) map {
-        case Create(t)            => Create(addOwnerReference(event.source, t))
-        case Update(t)            => Update(addOwnerReference(event.source, t))
-        case d @ Delete(_)        => d
-        case cs @ ChangeStatus(_) => cs
+        case Create(t)     => Create(addOwnerReference(event.source, t))
+        case Update(t)     => Update(addOwnerReference(event.source, t))
+        case d @ Delete(_) => d
       }
   }
 
@@ -124,4 +122,20 @@ abstract class Reconciler[S <: ObjectResource, T <: ObjectResource] {
 
     addOwner(target, ownerReference(source))
   }
+}
+
+abstract class CustomResourceReconciler[S <: CustomResource[_, _], T <: ObjectResource] extends Reconciler[S, T] {
+  case class ChangeStatus(sourceName: String, update: Source => Source) extends Action
+
+  override def wrapReconciler[R <: HList](recon: Event => List[Action])(
+    implicit generic: LabelledGeneric.Aux[T, R],
+    modifier: MetadataModifier[R]): Event => List[Action] = { event =>
+    recon(event) map {
+      case Create(t)               => Create(addOwnerReference(event.source, t))
+      case Update(t)               => Update(addOwnerReference(event.source, t))
+      case d @ Delete(_)           => d
+      case cs @ ChangeStatus(_, _) => cs
+    }
+  }
+
 }
