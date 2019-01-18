@@ -3,7 +3,7 @@ package cr4s
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{ Merge, Sink, Source }
-import cr4s.interpreter.{ CustomResourceSkuberInterpreter, SkuberInterpreter }
+import cr4s.interpreter.SkuberInterpreter
 import skuber._
 import skuber.api.client.RequestLoggingContext
 import skuber.json.apps.format._
@@ -25,7 +25,7 @@ object Main extends App {
   val fsSourceWatch = Source.fromFutureSource(fooServiceController.watchSource(1))
   val fsTargetWatch = Source.fromFutureSource(fooServiceController.watchTarget(1))
 
-  val fdInterpreter = new CustomResourceSkuberInterpreter(k8s, fooDeploymentController)
+  val fdInterpreter = new SkuberInterpreter(k8s, fooDeploymentController)
   Source
     .combine(fdSourceWatch, fdTargetWatch)(Merge(_))
     .map(fooDeploymentController.reconciler)

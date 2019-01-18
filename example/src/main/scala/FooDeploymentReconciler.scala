@@ -2,12 +2,12 @@ package cr4s
 
 import Foo.FooResource
 import com.softwaremill.quicklens._
-import reconciler.CustomResourceReconciler
+import reconciler.Reconciler
 import skuber._
 import skuber.LabelSelector.IsEqualRequirement
 import skuber.apps.Deployment
 
-class FooDeploymentReconciler extends CustomResourceReconciler[FooResource, Deployment] {
+class FooDeploymentReconciler extends Reconciler[FooResource, Deployment] {
 
   override def doReconcile: Event => List[Action] = {
     case Modified(foo, Nil) =>
