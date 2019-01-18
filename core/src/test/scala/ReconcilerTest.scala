@@ -1,3 +1,5 @@
+package cr4s
+
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
@@ -7,14 +9,13 @@ import com.softwaremill.quicklens._
 import cr4s.reconciler.Reconciler
 import org.scalatest.{ FlatSpec, Matchers }
 import skuber.Service
-import skuber.apps.Deployment
 
 class ReconcilerTest extends FlatSpec with Matchers {
 
   implicit val system = ActorSystem()
   implicit val materializer = ActorMaterializer()
 
-  class DeploymentServiceReconciler extends Reconciler[Deployment, Service] {
+  class DeploymentServiceReconciler extends Reconciler[Foo.FooResource, Service] {
     override def doReconcile: Event => List[Action] = {
       case Modified(deployment, Nil) =>
         List(Create(Service(deployment.name)))
@@ -27,12 +28,12 @@ class ReconcilerTest extends FlatSpec with Matchers {
 
   val testController = new DeploymentServiceReconciler
 
-  val deployment = Deployment("test")
+  val foo = Foo("test", Foo.Spec("test", 1))
   val service =
-    Service(deployment.name).modify(_.metadata.ownerReferences).setTo(List(testController.ownerReference(deployment)))
+    Service(foo.name).modify(_.metadata.ownerReferences).setTo(List(testController.ownerReference(foo)))
 
   val events: List[testController.Event] = List(
-    testController.Modified(deployment, List.empty[Service])
+    testController.Modified(foo, List.empty[Service])
   )
 
   val source: Source[List[testController.Action], NotUsed] = Source(events).map(testController.reconciler)
