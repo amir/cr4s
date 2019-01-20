@@ -13,25 +13,30 @@ class FooDeploymentReconciler extends Reconciler[FooResource, Deployment] {
     case Modified(foo, Nil) =>
       List(
         Create(createDeployment(foo)),
-        ChangeStatus(foo.name, x => x.withStatus(Foo.Status(1, 0)))
+        ChangeStatus(foo.name, x => x.withStatus(Foo.Status(foo.spec.replicas, 0)))
       )
 
     case Modified(foo, deployment :: tail) =>
-      val updateAction: Option[Action] =
+      val updateAction: List[Action] =
         deployment.copySpec.replicas match {
           case Some(i) =>
-            if (foo.spec.replicas == i) None
-            else
-              Some(Update(deployment.modify(_.spec.each.replicas).setTo(Some(foo.spec.replicas))))
+            val updateAction =
+              if (foo.spec.replicas == i) Nil
+              else
+                List(Update(deployment.modify(_.spec.each.replicas).setTo(Some(foo.spec.replicas))))
 
-          case _ => None
+            val changeStatusAction = ChangeStatus(foo.name, f => f.withStatus(Foo.Status(foo.spec.replicas, i)))
+
+            updateAction :+ changeStatusAction
+
+          case _ => Nil
         }
 
       val deleteActions = tail.map(Delete)
 
-      updateAction.toList ++ deleteActions
+      updateAction ++ deleteActions
 
-    case Deleted(foo, deployments) => deployments.map(Delete)
+    case Deleted(_, deployments) => deployments.map(Delete)
   }
 
   def createDeployment(f: FooResource): Deployment = {

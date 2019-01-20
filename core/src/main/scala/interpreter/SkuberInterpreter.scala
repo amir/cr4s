@@ -9,9 +9,8 @@ import scala.concurrent.ExecutionContext
 import skuber.{ CustomResource, HasStatusSubresource, ObjectResource, ResourceDefinition }
 import skuber.api.client.RequestContext
 
-class SkuberInterpreter[C <: Reconciler[_ <: CustomResource[_, _], _ <: ObjectResource]](
-  k8s: RequestContext,
-  controller: C) {
+class SkuberInterpreter[C <: Reconciler[_ <: CustomResource[_, _], _ <: ObjectResource]](k8s: RequestContext,
+                                                                                         controller: C) {
   def flow(parallelism: Int)(implicit sourceFmt: Format[controller.Source],
                              sourceResourceDefinition: ResourceDefinition[controller.Source],
                              targetFmt: Format[controller.Target],

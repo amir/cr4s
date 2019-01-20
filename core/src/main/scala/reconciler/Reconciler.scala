@@ -36,15 +36,15 @@ abstract class Reconciler[S <: CustomResource[_, _], T <: ObjectResource] {
 
   def doReconcile: Event => List[Action]
 
-  def wrapReconciler[R <: HList](recon: Event => List[Action])(
-    implicit generic: LabelledGeneric.Aux[T, R],
-    modifier: MetadataModifier[R]): Event => List[Action] = { event =>
-    recon(event) map {
-      case Create(t)               => Create(addOwnerReference(event.source, t))
-      case Update(t)               => Update(addOwnerReference(event.source, t))
-      case d @ Delete(_)           => d
-      case cs @ ChangeStatus(_, _) => cs
-    }
+  def wrapReconciler[R <: HList](recon: Event => List[Action])(implicit generic: LabelledGeneric.Aux[T, R],
+                                                               modifier: MetadataModifier[R]): Event => List[Action] = {
+    event =>
+      recon(event) map {
+        case Create(t)               => Create(addOwnerReference(event.source, t))
+        case Update(t)               => Update(addOwnerReference(event.source, t))
+        case d @ Delete(_)           => d
+        case cs @ ChangeStatus(_, _) => cs
+      }
   }
 
   // scalastyle:off
