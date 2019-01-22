@@ -2,12 +2,23 @@ package cr4s
 package reconciler
 
 import GenericResourceModifiers._
-import akka.stream.Materializer
-import akka.stream.scaladsl.Source
+import akka.{ Done, NotUsed }
+import akka.event.LoggingAdapter
+import akka.stream.{ ClosedShape, Materializer }
+import akka.stream.scaladsl.{ Flow, GraphDSL, Merge, Partition, RunnableGraph, Sink, Source }
+import cr4s.interpreter._
 import play.api.libs.json.Format
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ ExecutionContext, Future }
 import shapeless.{ HList, LabelledGeneric }
-import skuber.{ CustomResource, LabelSelector, ListResource, ObjectResource, OwnerReference, ResourceDefinition }
+import skuber.{
+  CustomResource,
+  HasStatusSubresource,
+  LabelSelector,
+  ListResource,
+  ObjectResource,
+  OwnerReference,
+  ResourceDefinition
+}
 import skuber.LabelSelector.IsEqualRequirement
 import skuber.api.client.{ EventType, RequestContext, WatchEvent }
 
@@ -123,5 +134,79 @@ abstract class Reconciler[S <: CustomResource[_, _], T <: ObjectResource] {
                                                           modifier: MetadataModifier[R]): T = {
 
     addOwner(target, ownerReference(source))
+  }
+
+  def sink(implicit logger: LoggingAdapter): Sink[ActionResult, Future[Done]] =
+    Sink.foreach[ActionResult](r => logger.info("{}", r))
+
+  private def errorPartition = GraphDSL.create() { implicit b =>
+    b.add(Partition[ActionResult](2, {
+      case ActionResult(_, Success)    => 0
+      case ActionResult(_, Failure(_)) => 1
+    }))
+  }
+
+  private def convert(parallelism: Int)(
+    implicit context: RequestContext,
+    ec: ExecutionContext,
+    sourceFormat: Format[S],
+    sourceResourceDefinition: ResourceDefinition[S],
+    targetListFormat: Format[ListResource[T]],
+    targetListResourceDefinition: ResourceDefinition[ListResource[T]]): Flow[ActionResult, Event, NotUsed] =
+    Flow[ActionResult].mapAsync(parallelism) { res =>
+      val st = for {
+        s <- context.get[Source](res.action.name)
+        t <- context.list[ListResource[Target]].map { t =>
+          t.items.filter(x => x.metadata.ownerReferences.exists(_.uid == s.uid))
+        }
+      } yield (s, t)
+
+      st.map {
+        case (source, target) =>
+          res.action match {
+            case _: CreateAction | _: UpdateAction | _: ChangeStatusAction => Modified(source, target)
+            case _: DeleteAction                                           => Deleted(source, target)
+          }
+
+      }
+    }
+
+  def graph[R <: HList](parallelism: Int)(implicit context: RequestContext,
+                                          logger: LoggingAdapter,
+                                          sourceFormat: Format[S],
+                                          sourceListFormat: Format[ListResource[S]],
+                                          sourceResourceDefinition: ResourceDefinition[S],
+                                          sourceListResourceDefinition: ResourceDefinition[ListResource[S]],
+                                          targetFormat: Format[T],
+                                          targetListFormat: Format[ListResource[T]],
+                                          targetResourceDefinition: ResourceDefinition[T],
+                                          targetListResourceDefinition: ResourceDefinition[ListResource[T]],
+                                          hasStatusSubresource: HasStatusSubresource[S],
+                                          generic: LabelledGeneric.Aux[T, R],
+                                          modifier: MetadataModifier[R],
+                                          c: ExecutionContext,
+                                          materializer: Materializer): RunnableGraph[NotUsed] = {
+
+    val interpreter = new SkuberInterpreter(context, this)
+
+    RunnableGraph.fromGraph(GraphDSL.create() { implicit builder =>
+      import GraphDSL.Implicits._
+
+      val mergeEvents = builder.add(Merge[Event](2))
+      val merge = builder.add(Merge[ActionResult](2))
+
+      val s = Source.fromFutureSource(watchSource(parallelism))
+      val t = Source.fromFutureSource(watchTarget(parallelism))
+      val partition = builder.add(errorPartition)
+
+      s ~> mergeEvents
+      t ~> mergeEvents
+      mergeEvents.out.map(reconciler).via(interpreter.flow(parallelism)) ~> merge ~> partition
+
+      partition.out(1) ~> convert(parallelism).map(reconciler).via(interpreter.flow(parallelism)) ~> merge
+      partition.out(0) ~> sink
+
+      ClosedShape
+    })
   }
 }
