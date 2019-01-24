@@ -6,4 +6,9 @@ lazy val cr4s = project.in(file(".")).aggregate(core, example)
 
 lazy val core = project
 
-lazy val example = project dependsOn core
+lazy val example = (project dependsOn core)
+  .configs(IntegrationTest)
+  .settings(
+    Defaults.itSettings,
+    libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.5" % "it,test"
+  )
