@@ -9,6 +9,6 @@ lazy val core = project
 lazy val example = (project dependsOn core)
   .configs(IntegrationTest)
   .settings(
-    Defaults.itSettings,
+    Defaults.itSettings ++ inConfig(IntegrationTest)(org.scalafmt.sbt.ScalafmtPlugin.scalafmtConfigSettings),
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.5" % "it,test"
   )

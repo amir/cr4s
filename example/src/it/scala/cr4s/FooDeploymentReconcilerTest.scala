@@ -5,8 +5,8 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import com.softwaremill.quicklens._
 import com.typesafe.config.ConfigFactory
-import org.scalatest.{AsyncFlatSpec, Matchers}
-import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.{ AsyncFlatSpec, Matchers }
+import org.scalatest.concurrent.{ Eventually, ScalaFutures }
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import skuber._
@@ -48,12 +48,12 @@ class FooDeploymentReconcilerTest extends AsyncFlatSpec with Eventually with Mat
   it should "reflect CRD changes in the Deployment" in {
     k8s.get[FooResource](fooName).flatMap { f =>
       val replicas = f.spec.replicas
-      val updateFoo = f.modify(_.spec.replicas).setTo(replicas+1)
+      val updateFoo = f.modify(_.spec.replicas).setTo(replicas + 1)
       k8s.update[FooResource](updateFoo).flatMap { _ =>
         eventually(timeout(200 seconds), interval(5 seconds)) {
           val deployment = k8s.get[Deployment](f.spec.deploymentName)
           ScalaFutures.whenReady(deployment, timeout(2 seconds), interval(1 second)) { d =>
-            d.copySpec.replicas shouldBe Some(replicas+1)
+            d.copySpec.replicas shouldBe Some(replicas + 1)
           }
         }
       }
@@ -64,7 +64,7 @@ class FooDeploymentReconcilerTest extends AsyncFlatSpec with Eventually with Mat
     eventually(timeout(200 seconds), interval(3 seconds)) {
       val fr = k8s.get[FooResource](fooName)
       ScalaFutures.whenReady(fr, timeout(2 seconds), interval(1 seconds)) { f =>
-        f.status shouldBe Some(Foo.Status(2,2))
+        f.status shouldBe Some(Foo.Status(2, 2))
       }
     }
   }
@@ -76,10 +76,11 @@ class FooDeploymentReconcilerTest extends AsyncFlatSpec with Eventually with Mat
         val retrieved = Await.ready(deployment, 2 seconds).value.get
         retrieved match {
           case _: scala.util.Success[_] => assert(false)
-          case scala.util.Failure(ex) => ex match {
-            case ex: K8SException if ex.status.code.contains(404) => assert(true)
-            case _ => assert(false)
-          }
+          case scala.util.Failure(ex) =>
+            ex match {
+              case ex: K8SException if ex.status.code.contains(404) => assert(true)
+              case _                                                => assert(false)
+            }
         }
       }
     }
