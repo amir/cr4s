@@ -1,58 +1,58 @@
 package cr4s
 
-import Foo.FooResource
-import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.event.LoggingAdapter
 import com.softwaremill.quicklens._
-import com.typesafe.config.ConfigFactory
-import org.scalatest.{ AsyncFlatSpec, Matchers }
+import cr4s.Foo.FooResource
+import org.scalatest.Matchers
 import org.scalatest.concurrent.{ Eventually, ScalaFutures }
-import scala.concurrent.Await
 import scala.concurrent.duration._
-import skuber._
+import skuber.api.client.RequestContext
 import skuber.apps.Deployment
 import skuber.json.apps.format._
 
-class FooDeploymentReconcilerTest extends AsyncFlatSpec with Eventually with Matchers {
-  val fooName = java.util.UUID.randomUUID().toString
+class FooDeploymentReconcilerTest extends UIDFixture with Eventually with Matchers {
+  val reconciler = new FooDeploymentReconciler
 
-  behavior of "Foo Deployment Reconciler"
+  type Source = FooResource
 
-  implicit val system = ActorSystem()
-  implicit val materializer = ActorMaterializer()
-  implicit val dispatcher = system.dispatcher
+  implicit val rd = Foo.fooResourceDefinition
 
-  implicit val k8s = k8sInit(ConfigFactory.load())
-  implicit val logger = k8s.log
-
-  val foo = Foo(fooName, Foo.Spec(fooName, 1))
-
-  it should "create the Foo CRD" in {
-    k8s.create[FooResource](foo) map { f =>
-      assert(f.name == fooName)
+  it should "create the Foo CRD" in { fixture =>
+    val foo = Foo(fixture.uid, Foo.Spec(fixture.uid, 1))
+    fixture.context.create[FooResource](foo) map { f =>
+      assert(f.name === fixture.uid)
     }
   }
 
-  val reconciler = new FooDeploymentReconciler
-  reconciler.graph(1).run()
-
-  it should "create a Deployment corresponding to the CRD" in {
-    eventually(timeout(200 seconds), interval(5 seconds)) {
-      val deployment = k8s.get[Deployment](fooName)
-      ScalaFutures.whenReady(deployment, timeout(2 seconds), interval(1 seconds)) { d =>
-        d.copySpec.replicas shouldBe Some(foo.spec.replicas)
+  it should "create a Deployment corresponding to the CRD" in { fixture =>
+    val foo = Foo(fixture.uid, Foo.Spec(fixture.uid, 1))
+    implicit val context: RequestContext = fixture.context
+    implicit val logger: LoggingAdapter = context.log
+    context.create[FooResource](foo) flatMap { f =>
+      val reconciler = new FooDeploymentReconciler
+      reconciler.graph(1).run()
+      eventually(timeout(200 seconds), interval(5 seconds)) {
+        val deployment = context.get[Deployment](fixture.uid)
+        ScalaFutures.whenReady(deployment, timeout(2 seconds), interval(1 seconds)) { d =>
+          d.copySpec.replicas shouldBe Some(f.spec.replicas)
+        }
       }
     }
   }
 
-  it should "reflect CRD changes in the Deployment" in {
-    k8s.get[FooResource](fooName).flatMap { f =>
+  it should "reflect CRD changes in the Deployment" in { fixture =>
+    val foo = Foo(fixture.uid, Foo.Spec(fixture.uid, 1))
+    implicit val context: RequestContext = fixture.context
+    implicit val logger: LoggingAdapter = context.log
+    context.create[FooResource](foo) flatMap { f =>
+      val reconciler = new FooDeploymentReconciler
+      reconciler.graph(1).run()
       val replicas = f.spec.replicas
-      val updateFoo = f.modify(_.spec.replicas).setTo(replicas + 1)
-      k8s.update[FooResource](updateFoo).flatMap { _ =>
+      val updatedFoo = f.modify(_.spec.replicas).setTo(replicas + 1)
+      context.update[FooResource](updatedFoo) flatMap { _ =>
         eventually(timeout(200 seconds), interval(5 seconds)) {
-          val deployment = k8s.get[Deployment](f.spec.deploymentName)
-          ScalaFutures.whenReady(deployment, timeout(2 seconds), interval(1 second)) { d =>
+          val deployment = context.get[Deployment](fixture.uid)
+          ScalaFutures.whenReady(deployment, timeout(2 seconds), interval(1 seconds)) { d =>
             d.copySpec.replicas shouldBe Some(replicas + 1)
           }
         }
@@ -60,27 +60,17 @@ class FooDeploymentReconcilerTest extends AsyncFlatSpec with Eventually with Mat
     }
   }
 
-  it should "update CRD's status subresource" in {
-    eventually(timeout(200 seconds), interval(3 seconds)) {
-      val fr = k8s.get[FooResource](fooName)
-      ScalaFutures.whenReady(fr, timeout(2 seconds), interval(1 seconds)) { f =>
-        f.status shouldBe Some(Foo.Status(2, 2))
-      }
-    }
-  }
-
-  it should "delete Deployment once CRD is deleted" in {
-    k8s.delete[FooResource](fooName).map { _ =>
-      eventually(timeout(200 seconds), interval(3 seconds)) {
-        val deployment = k8s.get[Deployment](fooName)
-        val retrieved = Await.ready(deployment, 2 seconds).value.get
-        retrieved match {
-          case _: scala.util.Success[_] => assert(false)
-          case scala.util.Failure(ex) =>
-            ex match {
-              case ex: K8SException if ex.status.code.contains(404) => assert(true)
-              case _                                                => assert(false)
-            }
+  it should "update CRD's status subresources" in { fixture =>
+    val foo = Foo(fixture.uid, Foo.Spec(fixture.uid, 1))
+    implicit val context: RequestContext = fixture.context
+    implicit val logger: LoggingAdapter = context.log
+    context.create[FooResource](foo) flatMap { f =>
+      val reconciler = new FooDeploymentReconciler
+      reconciler.graph(1).run()
+      eventually(timeout(200 seconds), interval(5 seconds)) {
+        val fr = context.get[FooResource](fixture.uid)
+        ScalaFutures.whenReady(fr, timeout(2 seconds), interval(1 seconds)) { f =>
+          f.status shouldBe Some(Foo.Status(1, 1))
         }
       }
     }
