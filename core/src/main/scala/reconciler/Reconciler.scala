@@ -171,23 +171,22 @@ abstract class Reconciler[S <: CustomResource[_, _], T <: ObjectResource] {
       }
     }
 
-  def graph[R <: HList](parallelism: Int)(implicit context: RequestContext,
-                                          logger: LoggingAdapter,
-                                          sourceFormat: Format[S],
-                                          sourceListFormat: Format[ListResource[S]],
-                                          sourceResourceDefinition: ResourceDefinition[S],
-                                          sourceListResourceDefinition: ResourceDefinition[ListResource[S]],
-                                          targetFormat: Format[T],
-                                          targetListFormat: Format[ListResource[T]],
-                                          targetResourceDefinition: ResourceDefinition[T],
-                                          targetListResourceDefinition: ResourceDefinition[ListResource[T]],
-                                          hasStatusSubresource: HasStatusSubresource[S],
-                                          generic: LabelledGeneric.Aux[T, R],
-                                          modifier: MetadataModifier[R],
-                                          c: ExecutionContext,
-                                          materializer: Materializer): RunnableGraph[NotUsed] = {
-
-    val interpreter = new SkuberInterpreter(context, this)
+  def graph[R <: HList](interpreterFlow: Flow[List[Action], ActionResult, NotUsed], parallelism: Int)(
+    implicit context: RequestContext,
+    logger: LoggingAdapter,
+    sourceFormat: Format[S],
+    sourceListFormat: Format[ListResource[S]],
+    sourceResourceDefinition: ResourceDefinition[S],
+    sourceListResourceDefinition: ResourceDefinition[ListResource[S]],
+    targetFormat: Format[T],
+    targetListFormat: Format[ListResource[T]],
+    targetResourceDefinition: ResourceDefinition[T],
+    targetListResourceDefinition: ResourceDefinition[ListResource[T]],
+    hasStatusSubresource: HasStatusSubresource[S],
+    generic: LabelledGeneric.Aux[T, R],
+    modifier: MetadataModifier[R],
+    c: ExecutionContext,
+    materializer: Materializer): RunnableGraph[NotUsed] = {
 
     RunnableGraph.fromGraph(GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
@@ -201,9 +200,9 @@ abstract class Reconciler[S <: CustomResource[_, _], T <: ObjectResource] {
 
       s ~> mergeEvents
       t ~> mergeEvents
-      mergeEvents.out.map(reconciler).via(interpreter.flow(parallelism)) ~> merge ~> partition
+      mergeEvents.out.map(reconciler).via(interpreterFlow) ~> merge ~> partition
 
-      partition.out(1) ~> convert(parallelism).map(reconciler).via(interpreter.flow(parallelism)) ~> merge
+      partition.out(1) ~> convert(parallelism).map(reconciler).via(interpreterFlow) ~> merge
       partition.out(0) ~> sink
 
       ClosedShape
