@@ -1,6 +1,7 @@
 package cr4s
 
 import akka.actor.ActorSystem
+import akka.event.Logging
 import akka.stream.ActorMaterializer
 import cr4s.interpreter.SkuberInterpreter
 import skuber._
@@ -15,7 +16,7 @@ object Main extends App {
   implicit val loggingContext = RequestLoggingContext()
 
   implicit val k8s = k8sInit
-  implicit val logger = k8s.log
+  implicit val logger = Logging.getLogger(system, this)
 
   val fooDeploymentController = new FooDeploymentReconciler
   val fooServiceController = new FooServiceReconciler
