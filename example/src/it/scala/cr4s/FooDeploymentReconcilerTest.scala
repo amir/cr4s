@@ -3,8 +3,10 @@ package cr4s
 import akka.event.LoggingAdapter
 import com.softwaremill.quicklens._
 import cr4s.Foo.FooResource
+import cr4s.interpreter.SkuberInterpreter
 import org.scalatest.Matchers
-import org.scalatest.concurrent.{ Eventually, ScalaFutures }
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
+
 import scala.concurrent.duration._
 import skuber.api.client.RequestContext
 import skuber.apps.Deployment
@@ -30,7 +32,8 @@ class FooDeploymentReconcilerTest extends UIDFixture with Eventually with Matche
     implicit val logger: LoggingAdapter = context.log
     context.create[FooResource](foo) flatMap { f =>
       val reconciler = new FooDeploymentReconciler
-      reconciler.graph(1).run()
+      val interpreter = new SkuberInterpreter(context, reconciler)
+      reconciler.graph(interpreter.flow(1), 1).run()
       eventually(timeout(200 seconds), interval(5 seconds)) {
         val deployment = context.get[Deployment](fixture.uid)
         ScalaFutures.whenReady(deployment, timeout(2 seconds), interval(1 seconds)) { d =>
@@ -46,7 +49,8 @@ class FooDeploymentReconcilerTest extends UIDFixture with Eventually with Matche
     implicit val logger: LoggingAdapter = context.log
     context.create[FooResource](foo) flatMap { f =>
       val reconciler = new FooDeploymentReconciler
-      reconciler.graph(1).run()
+      val interpreter = new SkuberInterpreter(context, reconciler)
+      reconciler.graph(interpreter.flow(1), 1).run()
       val replicas = f.spec.replicas
       val updatedFoo = f.modify(_.spec.replicas).setTo(replicas + 1)
       context.update[FooResource](updatedFoo) flatMap { _ =>
@@ -66,7 +70,8 @@ class FooDeploymentReconcilerTest extends UIDFixture with Eventually with Matche
     implicit val logger: LoggingAdapter = context.log
     context.create[FooResource](foo) flatMap { f =>
       val reconciler = new FooDeploymentReconciler
-      reconciler.graph(1).run()
+      val interpreter = new SkuberInterpreter(context, reconciler)
+      reconciler.graph(interpreter.flow(1), 1).run()
       eventually(timeout(200 seconds), interval(5 seconds)) {
         val fr = context.get[FooResource](fixture.uid)
         ScalaFutures.whenReady(fr, timeout(2 seconds), interval(1 seconds)) { f =>
