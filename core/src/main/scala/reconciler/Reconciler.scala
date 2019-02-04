@@ -123,10 +123,6 @@ abstract class Reconciler[S <: CustomResource[_, _]: Typeable, T <: ObjectResour
   case class CacheEntryKey(name: String, namespace: String, kind: String)
   case class Cache(events: List[Event], cache: Map[CacheEntryKey, CacheEntry])
 
-  def keyer(o: ObjectResource): String = {
-    s"${o.metadata.namespace}/${o.kind}/${o.metadata.name}"
-  }
-
   def watchSourceRaw(implicit context: RequestContext,
                      sourceFormat: Format[S],
                      sourceListFormat: Format[ListResource[S]],
