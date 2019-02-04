@@ -120,7 +120,8 @@ abstract class Reconciler[S <: CustomResource[_, _]: Typeable, T <: ObjectResour
   // scalastyle:on
 
   case class CacheEntry(s: Source, ts: List[Target])
-  case class Cache(events: List[Event], cache: Map[String, CacheEntry])
+  case class CacheEntryKey(name: String, namespace: String, kind: String)
+  case class Cache(events: List[Event], cache: Map[CacheEntryKey, CacheEntry])
 
   def keyer(o: ObjectResource): String = {
     s"${o.metadata.namespace}/${o.kind}/${o.metadata.name}"
@@ -174,7 +175,7 @@ abstract class Reconciler[S <: CustomResource[_, _]: Typeable, T <: ObjectResour
       .scan(Cache(List.empty, Map.empty)) { (acc, x) =>
         x match {
           case `WatchEvent[S]`(we) =>
-            val key = keyer(we._object)
+            val key = CacheEntryKey(name = we._object.name, namespace = we._object.namespace, kind = we._object.kind)
             val targets = acc.cache.get(key).fold(List.empty[T])(_.ts)
             val cacheEntry = CacheEntry(we._object, targets)
             val cache = acc.cache + (key -> cacheEntry)
@@ -188,7 +189,7 @@ abstract class Reconciler[S <: CustomResource[_, _]: Typeable, T <: ObjectResour
 
           case `WatchEvent[T]`(we) =>
             val or = we._object.metadata.ownerReferences.head
-            val sourceKey = s"${we._object.namespace}/${or.kind}/${or.name}"
+            val sourceKey = CacheEntryKey(name = or.name, namespace = we._object.namespace, kind = or.kind)
 
             acc.cache.get(sourceKey) match {
               case Some(s) =>
