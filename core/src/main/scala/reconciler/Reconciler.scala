@@ -192,8 +192,12 @@ abstract class Reconciler[S <: CustomResource[_, _]: Typeable, T <: ObjectResour
 
             acc.cache.get(sourceKey) match {
               case Some(s) =>
-                val cacheEntry = CacheEntry(s.s, List(we._object))
-                Cache(List(Modified(s.s, List(we._object))), acc.cache + (sourceKey -> cacheEntry))
+                val cacheEntry = we._type match {
+                  case EventType.DELETED =>
+                    CacheEntry(s.s, List.empty[T])
+                  case _ => CacheEntry(s.s, List(we._object))
+                }
+                Cache(List(Modified(s.s, cacheEntry.ts)), acc.cache + (sourceKey -> cacheEntry))
               case None =>
                 acc
             }
