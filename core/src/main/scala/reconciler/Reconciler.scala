@@ -119,7 +119,7 @@ abstract class Reconciler[S <: CustomResource[_, _]: Typeable, T <: ObjectResour
   }
   // scalastyle:on
 
-  case class CacheEntry(s: Source, ts: List[Target])
+  case class CacheEntry(s: Option[Source], ts: List[Target])
   case class CacheEntryKey(name: String, namespace: String, kind: String)
   case class Cache(events: List[Event], cache: Map[CacheEntryKey, CacheEntry])
 
@@ -173,30 +173,28 @@ abstract class Reconciler[S <: CustomResource[_, _]: Typeable, T <: ObjectResour
           case `WatchEvent[S]`(we) =>
             val key = CacheEntryKey(name = we._object.name, namespace = we._object.namespace, kind = we._object.kind)
             val targets = acc.cache.get(key).fold(List.empty[T])(_.ts)
-            val cacheEntry = CacheEntry(we._object, targets)
-            val cache = acc.cache + (key -> cacheEntry)
+            val cache = acc.cache + (key -> CacheEntry(Some(we._object), targets))
 
             we._type match {
-              case EventType.ADDED | EventType.MODIFIED =>
-                Cache(List(Modified(we._object, targets)), cache)
-              case EventType.DELETED =>
-                Cache(List(Deleted(we._object, targets)), cache)
+              case EventType.ADDED | EventType.MODIFIED => Cache(List(Modified(we._object, targets)), cache)
+              case EventType.DELETED                    => Cache(List(Deleted(we._object, targets)), cache)
             }
 
           case `WatchEvent[T]`(we) =>
-            val or = we._object.metadata.ownerReferences.head
-            val sourceKey = CacheEntryKey(name = or.name, namespace = we._object.namespace, kind = or.kind)
+            // this assumes there's only one owner and they're in the same namespace
+            val owner = we._object.metadata.ownerReferences.head
+            val sourceKey = CacheEntryKey(name = owner.name, namespace = we._object.namespace, kind = owner.kind)
 
             acc.cache.get(sourceKey) match {
               case Some(s) =>
                 val cacheEntry = we._type match {
-                  case EventType.DELETED =>
-                    CacheEntry(s.s, List.empty[T])
-                  case _ => CacheEntry(s.s, List(we._object))
+                  case EventType.DELETED => CacheEntry(s.s, s.ts.filterNot(_.uid == we._object.uid))
+                  case _                 => CacheEntry(s.s, List(we._object))
                 }
-                Cache(List(Modified(s.s, cacheEntry.ts)), acc.cache + (sourceKey -> cacheEntry))
-              case None =>
-                acc
+                val cache = acc.cache + (sourceKey -> cacheEntry)
+                s.s.fold(acc.copy(cache = cache))(source => Cache(List(Modified(source, cacheEntry.ts)), cache))
+
+              case None => acc.copy(cache = acc.cache + (sourceKey -> CacheEntry(None, List(we._object))))
             }
         }
       }
