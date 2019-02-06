@@ -136,9 +136,6 @@ abstract class Reconciler[S <: CustomResource[_, _], T <: ObjectResource] {
     addOwner(target, ownerReference(source))
   }
 
-  def sink(implicit logger: LoggingAdapter): Sink[ActionResult, Future[Done]] =
-    Sink.foreach[ActionResult](r => logger.info("{}", r))
-
   private def errorPartition = GraphDSL.create() { implicit b =>
     b.add(Partition[ActionResult](2, {
       case ActionResult(_, Success)    => 0
@@ -171,22 +168,23 @@ abstract class Reconciler[S <: CustomResource[_, _], T <: ObjectResource] {
       }
     }
 
-  def graph[R <: HList](interpreterFlow: Flow[List[Action], ActionResult, NotUsed], parallelism: Int)(
-    implicit context: RequestContext,
-    logger: LoggingAdapter,
-    sourceFormat: Format[S],
-    sourceListFormat: Format[ListResource[S]],
-    sourceResourceDefinition: ResourceDefinition[S],
-    sourceListResourceDefinition: ResourceDefinition[ListResource[S]],
-    targetFormat: Format[T],
-    targetListFormat: Format[ListResource[T]],
-    targetResourceDefinition: ResourceDefinition[T],
-    targetListResourceDefinition: ResourceDefinition[ListResource[T]],
-    hasStatusSubresource: HasStatusSubresource[S],
-    generic: LabelledGeneric.Aux[T, R],
-    modifier: MetadataModifier[R],
-    c: ExecutionContext,
-    materializer: Materializer): RunnableGraph[NotUsed] = {
+  def graph[R <: HList](interpreterFlow: Flow[List[Action], ActionResult, NotUsed],
+                        sink: Sink[ActionResult, Future[Done]],
+                        parallelism: Int)(implicit context: RequestContext,
+                                          logger: LoggingAdapter,
+                                          sourceFormat: Format[S],
+                                          sourceListFormat: Format[ListResource[S]],
+                                          sourceResourceDefinition: ResourceDefinition[S],
+                                          sourceListResourceDefinition: ResourceDefinition[ListResource[S]],
+                                          targetFormat: Format[T],
+                                          targetListFormat: Format[ListResource[T]],
+                                          targetResourceDefinition: ResourceDefinition[T],
+                                          targetListResourceDefinition: ResourceDefinition[ListResource[T]],
+                                          hasStatusSubresource: HasStatusSubresource[S],
+                                          generic: LabelledGeneric.Aux[T, R],
+                                          modifier: MetadataModifier[R],
+                                          c: ExecutionContext,
+                                          materializer: Materializer): RunnableGraph[NotUsed] = {
 
     RunnableGraph.fromGraph(GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
