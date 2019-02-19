@@ -178,34 +178,6 @@ abstract class Reconciler[S <: CustomResource[_, _]: Typeable, T <: ObjectResour
 
   }
 
-  def watchSourceRaw(implicit context: RequestContext,
-                     sourceFormat: Format[S],
-                     sourceListFormat: Format[ListResource[S]],
-                     sourceResourceDefinition: ResourceDefinition[S],
-                     sourceListResourceDefinition: ResourceDefinition[ListResource[S]],
-                     ec: ExecutionContext): Future[akka.stream.scaladsl.Source[WatchEvent[S], NotUsed]] = {
-    context.list[ListResource[S]].map { l =>
-      val initialSource = Source(l.items.map(l => WatchEvent(EventType.MODIFIED, l)))
-      val watchedSource = context.watchAllContinuously[S](Some(l.resourceVersion))
-
-      initialSource.concat(watchedSource)
-    }
-  }
-
-  def watchTargetRaw(implicit context: RequestContext,
-                     targetFormat: Format[T],
-                     targetListFormat: Format[ListResource[T]],
-                     targetResourceDefinition: ResourceDefinition[T],
-                     targetListResourceDefinition: ResourceDefinition[ListResource[T]],
-                     ec: ExecutionContext): Future[akka.stream.scaladsl.Source[WatchEvent[T], NotUsed]] = {
-    context.list[ListResource[T]].map { l =>
-      val initialSource = Source(l.items.map(l => WatchEvent(EventType.MODIFIED, l)))
-      val watchedSource = context.watchAllContinuously[T](Some(l.resourceVersion))
-
-      initialSource.concat(watchedSource)
-    }
-  }
-
   def scanner(acc: Cache, x: WatchEvent[_ >: T with S <: ObjectResource]): Cache = {
     val `WatchEvent[S]` = TypeCase[WatchEvent[S]]
     val `WatchEvent[T]` = TypeCase[WatchEvent[T]]
