@@ -226,7 +226,7 @@ abstract class Reconciler[S <: CustomResource[_, _]: Typeable, T <: ObjectResour
       } yield
         Source
           .combine(resourceState.source, resourceState.target)(Merge(_))
-          .scan(Cache(List.empty, resourceState.state))(scanner)
+          .scan(Cache(resourceState.state.values.toList.map(ce => Modified(ce.s, ce.ts)), resourceState.state))(scanner)
           .map(_.events)
     )
   }
