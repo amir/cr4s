@@ -8,7 +8,6 @@ import cr4s.interpreter.{ ActionResult, SkuberInterpreter }
 import skuber._
 import skuber.api.client.RequestLoggingContext
 import skuber.json.apps.format._
-import skuber.json.format._
 
 object Main extends App {
   implicit val system = ActorSystem()
@@ -22,11 +21,13 @@ object Main extends App {
   val sink = Sink.foreach[ActionResult](r => logger.info("{}", r))
 
   val fooDeploymentController = new FooDeploymentReconciler
-  val fooServiceController = new FooServiceReconciler
-
   val fdInterpreter = new SkuberInterpreter(k8s, fooDeploymentController)
-  val fsInterpreter = new SkuberInterpreter(k8s, fooServiceController)
-
-  fooServiceController.graph(fsInterpreter.flow(1), sink, 1).run()
-  fooDeploymentController.graph(fdInterpreter.flow(1), sink, 1).run()
+  fooDeploymentController.merge
+    .mapConcat(a => a.map(fooDeploymentController.reconciler))
+    .via(fdInterpreter.flow(1))
+    .runForeach(a => logger.info("{}", a))
+    .onComplete {
+      case scala.util.Success(_) =>
+      case scala.util.Failure(e) => logger.error("{}", e)
+    }
 }

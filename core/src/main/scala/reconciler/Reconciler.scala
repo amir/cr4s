@@ -9,7 +9,7 @@ import akka.stream.scaladsl.{ Flow, GraphDSL, Merge, Partition, RunnableGraph, S
 import cr4s.interpreter._
 import play.api.libs.json.Format
 import scala.concurrent.{ ExecutionContext, Future }
-import shapeless.{ HList, LabelledGeneric }
+import shapeless.{ HList, LabelledGeneric, Typeable, TypeCase }
 import skuber.{
   CustomResource,
   HasStatusSubresource,
@@ -22,7 +22,7 @@ import skuber.{
 import skuber.LabelSelector.IsEqualRequirement
 import skuber.api.client.{ EventType, RequestContext, WatchEvent }
 
-abstract class Reconciler[S <: CustomResource[_, _], T <: ObjectResource] {
+abstract class Reconciler[S <: CustomResource[_, _]: Typeable, T <: ObjectResource: Typeable] {
 
   type Source = S
   type Target = T
@@ -118,6 +118,118 @@ abstract class Reconciler[S <: CustomResource[_, _], T <: ObjectResource] {
     }
   }
   // scalastyle:on
+
+  case class CacheEntry(s: Source, ts: List[Target])
+  case class CacheEntryKey(name: String, namespace: String, kind: String)
+  case class Cache(events: List[Event], cache: Map[CacheEntryKey, CacheEntry])
+
+  case class Resource[O <: ObjectResource](watch: akka.stream.scaladsl.Source[WatchEvent[O], _], list: List[O])
+  case class ResourcesState(source: akka.stream.scaladsl.Source[WatchEvent[S], _],
+                            target: akka.stream.scaladsl.Source[WatchEvent[T], _],
+                            state: Map[CacheEntryKey, CacheEntry])
+
+  def buildResource[O <: ObjectResource](implicit context: RequestContext,
+                                         format: Format[O],
+                                         listFormat: Format[ListResource[O]],
+                                         resourceDefinition: ResourceDefinition[O],
+                                         ec: ExecutionContext): Future[Resource[O]] = {
+    context.list[ListResource[O]]().map { l =>
+      Resource[O](
+        context.watchAllContinuously[O](Some(l.resourceVersion)),
+        l.items
+      )
+    }
+  }
+
+  def buildState(sources: List[S], target: List[T]): Map[CacheEntryKey, CacheEntry] = {
+    val initKeys = sources.foldLeft(Map.empty[CacheEntryKey, CacheEntry]) {
+      case (acc, s) =>
+        val key = CacheEntryKey(name = s.name, namespace = s.namespace, kind = s.kind)
+        acc + (key -> CacheEntry(s, List.empty))
+    }
+
+    target.foldLeft(initKeys) {
+      case (acc, t) =>
+        val owner = t.metadata.ownerReferences.head
+        val sourceKey = CacheEntryKey(name = owner.name, namespace = t.namespace, kind = owner.kind)
+
+        acc.get(sourceKey).fold(acc)(s => acc + (sourceKey -> s.copy(ts = t :: s.ts)))
+    }
+  }
+
+  def buildResourcesState(implicit context: RequestContext,
+                          sourceFormat: Format[S],
+                          sourceListFormat: Format[ListResource[S]],
+                          sourceResourceDefinition: ResourceDefinition[S],
+                          targetFormat: Format[T],
+                          targetListFormat: Format[ListResource[T]],
+                          targetResourceDefinition: ResourceDefinition[T],
+                          ec: ExecutionContext): Future[ResourcesState] = {
+
+    for {
+      source <- buildResource[S]
+      target <- buildResource[T]
+    } yield
+      ResourcesState(
+        source.watch,
+        target.watch,
+        buildState(source.list, target.list)
+      )
+
+  }
+
+  def scanner(acc: Cache, x: WatchEvent[_ >: T with S <: ObjectResource]): Cache = {
+    val `WatchEvent[S]` = TypeCase[WatchEvent[S]]
+    val `WatchEvent[T]` = TypeCase[WatchEvent[T]]
+
+    x match {
+      case `WatchEvent[S]`(we) =>
+        val key = CacheEntryKey(name = we._object.name, namespace = we._object.namespace, kind = we._object.kind)
+        val targets = acc.cache.get(key).fold(List.empty[T])(_.ts)
+        val cache = acc.cache + (key -> CacheEntry(we._object, targets))
+
+        we._type match {
+          case EventType.ADDED | EventType.MODIFIED => Cache(List(Modified(we._object, targets)), cache)
+          case EventType.DELETED                    => Cache(List(Deleted(we._object, targets)), cache - key)
+        }
+
+      case `WatchEvent[T]`(we) =>
+        val owner = we._object.metadata.ownerReferences.head
+        val sourceKey = CacheEntryKey(name = owner.name, namespace = we._object.namespace, kind = owner.kind)
+
+        acc.cache.get(sourceKey) match {
+          case Some(s) =>
+            val cacheEntry = we._type match {
+              case EventType.DELETED => CacheEntry(s.s, s.ts.filterNot(_.uid == we._object.uid))
+              case _                 => CacheEntry(s.s, List(we._object))
+            }
+            val cache = acc.cache + (sourceKey -> cacheEntry)
+            Cache(List(Modified(s.s, cacheEntry.ts)), cache)
+
+          case None => acc
+        }
+    }
+  }
+
+  def merge(implicit context: RequestContext,
+            sourceFormat: Format[S],
+            sourceListFormat: Format[ListResource[S]],
+            sourceResourceDefinition: ResourceDefinition[S],
+            targetFormat: Format[T],
+            targetListFormat: Format[ListResource[T]],
+            targetResourceDefinition: ResourceDefinition[T],
+            ec: ExecutionContext): akka.stream.scaladsl.Source[List[Event], Future[NotUsed]] = {
+
+    Source.fromFutureSource(
+      for {
+        resourceState <- buildResourcesState
+      } yield
+        Source
+          .combine(resourceState.source, resourceState.target)(Merge(_))
+          .scan(Cache(resourceState.state.values.toList.map(ce => Modified(ce.s, ce.ts)), resourceState.state))(scanner)
+          .map(_.events)
+    )
+  }
 
   def ownerReference[O <: ObjectResource](o: O): OwnerReference = {
     OwnerReference(
